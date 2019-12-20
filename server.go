@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/mux"
@@ -16,15 +17,13 @@ type Server struct {
 	db      *sql.DB
 	seasons []Season
 	players []Player
+	decks   []Deck
 }
 
-var (
-	err error
-)
-
-func NewServer() *Server {
+func NewServer(db *sql.DB) *Server {
 	return &Server{
 		router: mux.New(),
+		db:     db,
 	}
 }
 
@@ -44,14 +43,11 @@ func (s *Server) Init() {
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
 	s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
+
+	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))
 }
 
 func (s *Server) InitDB() {
-	s.db, err = sql.Open("sqlite3", "../../db/tournaments.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	s.LoadSeasons()
 	s.LoadPlayers()
 }
@@ -70,6 +66,26 @@ func (s *Server) LoadSeasons() {
 			log.Fatalf("Scan: %v\n", err)
 		}
 		s.seasons = append(s.seasons, seas)
+	}
+	for _, seas := range s.seasons {
+		spQuery := `
+			SELECT id, name
+			FROM Players
+			INNER JOIN SeasonPlayers ON SeasonPlayers.playerID = Players.id
+			WHERE seasonID == ` + strconv.Itoa(seas.Id)
+		rows, err := s.db.Query(spQuery)
+		if err != nil {
+			log.Fatalf("Query: %v\n", err)
+		}
+		seas.Players = []Player{}
+		for rows.Next() {
+			plr := Player{}
+			err = rows.Scan(&plr.Id, &plr.Name)
+			if err != nil {
+				log.Fatalf("Scan: %v\n", err)
+			}
+			seas.Players = append(seas.Players, plr)
+		}
 	}
 }
 

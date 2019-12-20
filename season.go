@@ -42,17 +42,40 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 					Name:  "name",
 					Value: seas.Name,
 				},
-				{
-					Label: "Players",
-					Name:  "players",
-					Value: seas.Players,
-				},
 			},
+		}
+		plrs := hyper.Item{
+			Label: "Participating Players",
+			Type:  "players",
+		}
+		for _, plr := range seas.Players {
+			item := hyper.Item{
+				Label: plr.Name,
+				Type:  "player",
+				Properties: []hyper.Property{
+					{
+						Label: "ID",
+						Name:  "id",
+						Value: plr.Id,
+					},
+					{
+						Label: "Name",
+						Name:  "name",
+						Value: plr.Name,
+					},
+				},
+			}
+			pLink := hyper.Link{
+				Rel:  plr.Name,
+				Href: resolve("../players/%d", plr.Id).String(),
+			}
+			item.AddLink(pLink)
 		}
 		sLink := hyper.Link{
 			Rel:  seas.Name,
 			Href: resolve("./%d", seas.Id).String(),
 		}
+		item.AddItem(plrs)
 		item.AddLink(sLink)
 		res.AddItem(item)
 	}

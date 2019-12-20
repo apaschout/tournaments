@@ -6,12 +6,12 @@
 *.dylib
 
 #SQLite
-.db
-.db-shm
-.db-wal
-.sqlite
-.sqlite-shm
-.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Test binary, built with `go test -c`
 *.test

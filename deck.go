@@ -1,18 +1,20 @@
 package tournaments
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/cognicraft/hyper"
 )
 
 type Deck struct {
-	Id   int
+	Id   string
 	Name string
 	Link string
 }
 
 func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
+	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Decks",
@@ -24,7 +26,13 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 			Href: resolve(".").String(),
 		},
 	}
-	for _, dck := range s.decks {
+	s.decks, err = s.db.FindAllDecks()
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, dck := range *s.decks {
 		item := hyper.Item{
 			Label: dck.Name,
 			Type:  "deck",

@@ -2,22 +2,21 @@ package tournaments
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/cognicraft/hyper"
 )
 
 type Season struct {
 	Name    string   `json:"name,omitempty"`
-	Id      int      `json:"id"`
+	Id      string   `json:"id"`
 	Players []Player `json:"players"`
 }
 
 func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
+	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Seasons",
@@ -27,7 +26,13 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 		Rel:  "self",
 		Href: resolve(".").String(),
 	}
-	for _, seas := range s.seasons {
+	s.seasons, err = s.db.FindAllSeasons()
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, seas := range *s.seasons {
 		item := hyper.Item{
 			Label: seas.Name,
 			Type:  "season",
@@ -67,13 +72,13 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 			}
 			pLink := hyper.Link{
 				Rel:  plr.Name,
-				Href: resolve("../players/%d", plr.Id).String(),
+				Href: resolve("../players/%s", plr.Id).String(),
 			}
 			item.AddLink(pLink)
 		}
 		sLink := hyper.Link{
 			Rel:  seas.Name,
-			Href: resolve("./%d", seas.Id).String(),
+			Href: resolve("./%s", seas.Id).String(),
 		}
 		item.AddItem(plrs)
 		item.AddLink(sLink)
@@ -85,21 +90,13 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	sID, err := strconv.Atoi(r.Context().Value(":id").(string))
+	sID := r.Context().Value(":id").(string)
+
+	seas, err := s.db.FindSeasonByID(sID)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
-	}
-	var seas Season
-	for _, v := range s.seasons {
-		if v.Id == sID {
-			seas = v
-			break
-		}
-	}
-	if seas.Id == 0 {
-		err = fmt.Errorf("Couldn't find SeasonID %d", sID)
-		hyper.WriteError(w, http.StatusNotFound, err)
+		return
 	}
 
 	res := hyper.Item{
@@ -120,7 +117,7 @@ func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 	}
 	link := hyper.Link{
 		Rel:  "self",
-		Href: resolve("./%d", seas.Id).String(),
+		Href: resolve("./%s", seas.Id).String(),
 	}
 	res.AddLink(link)
 	hyper.Write(w, http.StatusOK, res)
@@ -142,21 +139,12 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "INSERT INTO Seasons (name) VALUES (?)"
-	stmt, err := s.db.Prepare(query)
+	err = s.db.CreateSeason(&seas)
 	if err != nil {
-		log.Printf("Prepare: %v\n", err)
+		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	_, err = stmt.Exec(seas.Name)
-	if err != nil {
-		log.Printf("Exec: %v\n", err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-	s.LoadSeasons()
 
 	w.WriteHeader(http.StatusNoContent)
 }

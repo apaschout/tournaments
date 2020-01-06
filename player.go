@@ -2,21 +2,20 @@ package tournaments
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/cognicraft/hyper"
 )
 
 type Player struct {
-	Id   int    `json:"id,omitempty"`
+	Id   string `json:"id,omitempty"`
 	Name string `json:"name"`
 }
 
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
+	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Players",
@@ -28,7 +27,13 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 			Href: resolve(".").String(),
 		},
 	}
-	for _, plr := range s.players {
+	s.players, err = s.db.FindAllPlayers()
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, plr := range *s.players {
 		item := hyper.Item{
 			Label: plr.Name,
 			Type:  "player",
@@ -47,7 +52,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		}
 		pLink := hyper.Link{
 			Rel:  plr.Name,
-			Href: resolve("./%d", plr.Id).String(),
+			Href: resolve("./%s", plr.Id).String(),
 		}
 		item.AddLink(pLink)
 		res.AddItem(item)
@@ -58,22 +63,11 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	pID, err := strconv.Atoi(r.Context().Value(":id").(string))
+	pID := r.Context().Value(":id").(string)
+	plr, err := s.db.FindPlayerByID(pID)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-	var plr Player
-	for _, p := range s.players {
-		if p.Id == pID {
-			plr = p
-			break
-		}
-	}
-	if plr.Id == 0 {
-		err := fmt.Errorf("Couldn't find PlayerID %d", pID)
-		hyper.WriteError(w, http.StatusNotFound, err)
 		return
 	}
 
@@ -95,7 +89,7 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	}
 	link := hyper.Link{
 		Rel:  "self",
-		Href: resolve("./%d", plr.Id).String(),
+		Href: resolve("./%s", plr.Id).String(),
 	}
 	res.AddLink(link)
 	hyper.Write(w, http.StatusOK, res)
@@ -116,22 +110,12 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	query := "INSERT INTO Players (name) VALUES (?)"
-	stmt, err := s.db.Prepare(query)
+	err = s.db.CreatePlayer(&plr)
 	if err != nil {
-		log.Printf("Prepare: %v\n", err)
+		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	_, err = stmt.Exec(plr.Name)
-	if err != nil {
-		log.Printf("Exec: %v\n", err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-	s.LoadPlayers()
 
 	w.WriteHeader(http.StatusNoContent)
 }

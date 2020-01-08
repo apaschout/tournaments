@@ -32,7 +32,7 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	for _, dck := range *s.decks {
+	for _, dck := range s.decks {
 		item := hyper.Item{
 			Label: dck.Name,
 			Type:  "deck",

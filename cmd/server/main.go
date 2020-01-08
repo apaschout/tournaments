@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -8,7 +9,8 @@ import (
 )
 
 const (
-	dsn = "tournaments.db"
+	dsn  = "tournaments.db"
+	port = ":8080"
 )
 
 func main() {
@@ -18,14 +20,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = tournaments.InitDB(db.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	s := tournaments.NewServer(db)
 	s.Init()
-	err = http.ListenAndServe(":8080", s)
+	fmt.Printf("Server running on %s\n", port)
+	err = http.ListenAndServe(port, s)
 	if err != nil {
 		log.Fatal(err)
 	}

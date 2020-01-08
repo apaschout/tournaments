@@ -5,14 +5,18 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/cognicraft/hyper"
+	"github.com/cognicraft/uuid"
 )
 
 type Season struct {
-	Name    string   `json:"name,omitempty"`
-	Id      string   `json:"id"`
-	Players []Player `json:"players"`
+	Id      string    `json:"id"`
+	Name    string    `json:"name,omitempty"`
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	Players []Player  `json:"players"`
 }
 
 func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +36,7 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	for _, seas := range *s.seasons {
+	for _, seas := range s.seasons {
 		item := hyper.Item{
 			Label: seas.Name,
 			Type:  "season",
@@ -139,7 +143,36 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.db.CreateSeason(&seas)
+	seas.Id = uuid.MakeV4()
+	err = s.db.SaveSeason(seas)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handlePUTSeason(w http.ResponseWriter, r *http.Request) {
+	sID := r.Context().Value(":id").(string)
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	seas := Season{}
+	err = json.Unmarshal(b, &seas)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	seas.Id = sID
+	err = s.db.UpdateSeason(seas)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)

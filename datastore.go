@@ -1,15 +1,27 @@
 package tournaments
 
 type Datastore interface {
-	CreateSeason(seas *Season) error
-	FindSeasonByID(id string) (*Season, error)
-	FindAllSeasons() (*[]Season, error)
+	SeasonRepository
+	PlayerRepository
+	DeckRepository
+}
 
-	FindAllPlayers() (*[]Player, error)
-	FindPlayerByID(id string) (*Player, error)
-	CreatePlayer(plr *Player) error
+type SeasonRepository interface {
+	FindAllSeasons() ([]Season, error)
+	FindSeasonByID(id string) (Season, error)
+	SaveSeason(seas Season) error
+	UpdateSeason(seas Season) error
+}
 
-	FindAllDecks() (*[]Deck, error)
-	FindDeckByID(id string) (*Deck, error)
-	CreateDeck(deck *Deck) error
+type PlayerRepository interface {
+	FindAllPlayers() ([]Player, error)
+	FindPlayerByID(id string) (Player, error)
+	SavePlayer(plr Player) error
+	UpdatePlayer(plr Player) error
+}
+
+type DeckRepository interface {
+	FindAllDecks() ([]Deck, error)
+	FindDeckByID(id string) (Deck, error)
+	SaveDeck(deck Deck) error
 }

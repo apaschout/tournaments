@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/cognicraft/hyper"
+	"github.com/cognicraft/uuid"
 )
 
 type Player struct {
@@ -33,7 +34,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	for _, plr := range *s.players {
+	for _, plr := range s.players {
 		item := hyper.Item{
 			Label: plr.Name,
 			Type:  "player",
@@ -110,7 +111,36 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = s.db.CreatePlayer(&plr)
+
+	plr.Id = uuid.MakeV4()
+	err = s.db.SavePlayer(plr)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handlePUTPlayers(w http.ResponseWriter, r *http.Request) {
+	pID := r.Context().Value(":id").(string)
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	plr := Player{Id: pID}
+	err = json.Unmarshal(b, &plr)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = s.db.UpdatePlayer(plr)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)

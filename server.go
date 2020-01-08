@@ -5,16 +5,14 @@ import (
 
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/mux"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type Server struct {
 	router  *mux.Router
 	db      Datastore
-	seasons *[]Season
-	players *[]Player
-	decks   *[]Deck
+	seasons []Season
+	players []Player
+	decks   []Deck
 }
 
 func NewServer(db Datastore) *Server {
@@ -35,10 +33,12 @@ func (s *Server) Init() {
 	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETSeasons))
 	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETSeason))
 	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTSeasons))
+	s.router.Route("/api/seasons/:id").PUT(chain.ThenFunc(s.handlePUTSeason))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
 	s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
+	s.router.Route("/api/players/:id").PUT(chain.ThenFunc(s.handlePUTPlayers))
 
 	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))
 }

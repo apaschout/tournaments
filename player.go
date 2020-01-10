@@ -11,9 +11,11 @@ import (
 )
 
 type Player struct {
-	Id   string `json:"id,omitempty"`
-	Name string `json:"name"`
+	ID   PlayerID `json:"id,omitempty"`
+	Name string   `json:"name"`
 }
+
+type PlayerID string
 
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 	var err error
@@ -22,11 +24,9 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		Label: "Players",
 		Type:  "players",
 	}
-	links := []hyper.Link{
-		{
-			Rel:  "self",
-			Href: resolve(".").String(),
-		},
+	link := hyper.Link{
+		Rel:  "self",
+		Href: resolve(".").String(),
 	}
 	s.players, err = s.db.FindAllPlayers()
 	if err != nil {
@@ -35,64 +35,26 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, plr := range s.players {
-		item := hyper.Item{
-			Label: plr.Name,
-			Type:  "player",
-			Properties: []hyper.Property{
-				{
-					Label: "ID",
-					Name:  "id",
-					Value: plr.Id,
-				},
-				{
-					Label: "Name",
-					Name:  "name",
-					Value: plr.Name,
-				},
-			},
-		}
-		pLink := hyper.Link{
-			Rel:  "details",
-			Href: resolve("./%s", plr.Id).String(),
-		}
-		item.AddLink(pLink)
+		item := plr.MakeUndetailedHyperItem(resolve)
 		res.AddItem(item)
 	}
-	res.AddLinks(links)
+	res.AddLink(link)
 	hyper.Write(w, http.StatusOK, res)
 }
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	pID := r.Context().Value(":id").(string)
-	plr, err := s.db.FindPlayerByID(pID)
+	plr := Player{}
+	var err error
+	pID := PlayerID(r.Context().Value(":id").(string))
+	plr, err = s.db.FindPlayerByID(pID)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	res := hyper.Item{
-		Label: plr.Name,
-		Type:  "player",
-		Properties: []hyper.Property{
-			{
-				Label: "Name",
-				Name:  "name",
-				Value: plr.Name,
-			},
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: plr.Id,
-			},
-		},
-	}
-	link := hyper.Link{
-		Rel:  "self",
-		Href: resolve("./%s", plr.Id).String(),
-	}
-	res.AddLink(link)
+	res := plr.MakeDetailedHyperItem(resolve)
 	hyper.Write(w, http.StatusOK, res)
 }
 
@@ -111,13 +73,17 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = s.db.CheckForDuplicateName("Players", plr.Name)
-	if err != nil {
+	ok, err := s.db.PlayerNameAvailable(plr.Name)
+	if !ok {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	plr.Id = uuid.MakeV4()
+	_, err = uuid.Parse(string(plr.ID))
+	if err != nil {
+		plr.ID = PlayerID(uuid.MakeV4())
+	}
+	plr.ID = PlayerID(uuid.MakeV4())
 	err = s.db.SavePlayer(plr)
 	if err != nil {
 		log.Println(err)
@@ -126,4 +92,54 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	item := hyper.Item{
+		Label: plr.Name,
+		Type:  "player",
+		Properties: []hyper.Property{
+			{
+				Label: "ID",
+				Name:  "id",
+				Value: plr.ID,
+			},
+			{
+				Label: "Name",
+				Name:  "name",
+				Value: plr.Name,
+			},
+		},
+	}
+	pLink := hyper.Link{
+		Rel:  "details",
+		Href: resolve("./%s", plr.ID).String(),
+	}
+	item.AddLink(pLink)
+	return item
+}
+
+func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	item := hyper.Item{
+		Label: plr.Name,
+		Type:  "player",
+		Properties: []hyper.Property{
+			{
+				Label: "Name",
+				Name:  "name",
+				Value: plr.Name,
+			},
+			{
+				Label: "ID",
+				Name:  "id",
+				Value: plr.ID,
+			},
+		},
+	}
+	link := hyper.Link{
+		Rel:  "self",
+		Href: resolve("./%s", plr.ID).String(),
+	}
+	item.AddLink(link)
+	return item
 }

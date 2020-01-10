@@ -11,14 +11,16 @@ import (
 )
 
 type Season struct {
-	Id       string   `json:"id"`
-	Name     string   `json:"name"`
-	Start    string   `json:"start,omitempty"`
-	End      string   `json:"end,omitempty"`
-	Finished bool     `json:"finished,omitempty"`
-	Format   string   `json:"format,omitempty"`
-	Players  []Player `json:"players,omitempty"`
+	ID       SeasonID   `json:"id"`
+	Name     string     `json:"name"`
+	Start    string     `json:"start,omitempty"`
+	End      string     `json:"end,omitempty"`
+	Finished bool       `json:"finished,omitempty"`
+	Format   string     `json:"format,omitempty"`
+	Players  []PlayerID `json:"players,omitempty"`
 }
+
+type SeasonID string
 
 func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 	var err error
@@ -38,62 +40,15 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, seas := range s.seasons {
-		seas.Players, err = s.db.FindPlayersInSeason(seas.Id)
+		seas.Players, err = s.db.FindPlayersInSeason(seas.ID)
 		if err != nil {
 			log.Println(err)
 			hyper.WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
-		item := hyper.Item{
-			Label: seas.Name,
-			Type:  "season",
-			Properties: []hyper.Property{
-				{
-					Label: "ID",
-					Name:  "id",
-					Value: seas.Id,
-				},
-				{
-					Label: "Name",
-					Name:  "name",
-					Value: seas.Name,
-				},
-			},
-		}
-		plrs := hyper.Item{
-			Label: "Participating Players",
-			Type:  "players",
-		}
-		for _, plr := range seas.Players {
-			item := hyper.Item{
-				Label: plr.Name,
-				Type:  "player",
-				Properties: []hyper.Property{
-					{
-						Label: "ID",
-						Name:  "id",
-						Value: plr.Id,
-					},
-					{
-						Label: "Name",
-						Name:  "name",
-						Value: plr.Name,
-					},
-				},
-			}
-			pLink := hyper.Link{
-				Rel:  "details",
-				Href: resolve("../players/%s", plr.Id).String(),
-			}
-			item.AddLink(pLink)
-			plrs.AddItem(item)
-		}
-		sLink := hyper.Link{
-			Rel:  seas.Name,
-			Href: resolve("./%s", seas.Id).String(),
-		}
+		item := seas.MakeUndetailedSeasonHyperItem(resolve)
+		plrs := seas.MakePlayersHyperItem(resolve)
 		item.AddItem(plrs)
-		item.AddLink(sLink)
 		res.AddItem(item)
 	}
 	res.AddLink(link)
@@ -102,7 +57,7 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	sID := r.Context().Value(":id").(string)
+	sID := SeasonID(r.Context().Value(":id").(string))
 
 	seas, err := s.db.FindSeasonByID(sID)
 	if err != nil {
@@ -110,28 +65,16 @@ func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
+	seas.Players, err = s.db.FindPlayersInSeason(seas.ID)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
 
-	res := hyper.Item{
-		Label: seas.Name,
-		Type:  "season",
-		Properties: []hyper.Property{
-			{
-				Label: "Name",
-				Name:  "name",
-				Value: seas.Name,
-			},
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: seas.Id,
-			},
-		},
-	}
-	link := hyper.Link{
-		Rel:  "self",
-		Href: resolve("./%s", seas.Id).String(),
-	}
-	res.AddLink(link)
+	res := seas.MakeDetailedSeasonHyperItem(resolve)
+	plrs := seas.MakePlayersHyperItem(resolve)
+	res.AddItem(plrs)
 	hyper.Write(w, http.StatusOK, res)
 }
 
@@ -151,14 +94,16 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.db.CheckForDuplicateName("Seasons", seas.Name)
-	if err != nil {
+	ok, err := s.db.SeasonNameAvailable(seas.Name)
+	if !ok {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	seas.Id = uuid.MakeV4()
+	_, err = uuid.Parse(string(seas.ID))
+	if err != nil {
+		seas.ID = SeasonID(uuid.MakeV4())
+	}
 	err = s.db.SaveSeason(seas)
 	if err != nil {
 		log.Println(err)
@@ -167,4 +112,101 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (seas *Season) MakePlayersHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	plrs := hyper.Item{
+		Label: "Participating Players",
+		Type:  "players",
+	}
+	for _, plrID := range seas.Players {
+		item := hyper.Item{
+			Label: "Player",
+			Type:  "player",
+			Properties: []hyper.Property{
+				{
+					Label: "ID",
+					Name:  "id",
+					Value: plrID,
+				},
+			},
+		}
+		pLink := hyper.Link{
+			Rel:  "details",
+			Href: resolve("../players/%s", plrID).String(),
+		}
+		item.AddLink(pLink)
+		plrs.AddItem(item)
+	}
+	return plrs
+}
+
+func (seas *Season) MakeUndetailedSeasonHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	item := hyper.Item{
+		Label: seas.Name,
+		Type:  "season",
+		Properties: []hyper.Property{
+			{
+				Label: "ID",
+				Name:  "id",
+				Value: seas.ID,
+			},
+			{
+				Label: "Name",
+				Name:  "name",
+				Value: seas.Name,
+			},
+		},
+	}
+	sLink := hyper.Link{
+		Rel:  "details",
+		Href: resolve("./%s", seas.ID).String(),
+	}
+	item.AddLink(sLink)
+	return item
+}
+
+func (seas *Season) MakeDetailedSeasonHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	item := hyper.Item{
+		Label: seas.Name,
+		Type:  "season",
+		Properties: []hyper.Property{
+			{
+				Label: "Name",
+				Name:  "name",
+				Value: seas.Name,
+			},
+			{
+				Label: "ID",
+				Name:  "id",
+				Value: seas.ID,
+			},
+			{
+				Label: "Start",
+				Name:  "start",
+				Value: seas.Start,
+			},
+			{
+				Label: "End",
+				Name:  "end",
+				Value: seas.End,
+			},
+			{
+				Label: "Finished",
+				Name:  "finished",
+				Value: seas.Finished,
+			},
+			{
+				Label: "Format",
+				Name:  "format",
+				Value: seas.Format,
+			},
+		},
+	}
+	link := hyper.Link{
+		Rel:  "self",
+		Href: resolve("./%s", seas.ID).String(),
+	}
+	item.AddLink(link)
+	return item
 }

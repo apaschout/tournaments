@@ -52,7 +52,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 		pLink := hyper.Link{
-			Rel:  plr.Name,
+			Rel:  "details",
 			Href: resolve("./%s", plr.Id).String(),
 		}
 		item.AddLink(pLink)
@@ -111,36 +111,14 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 		hyper.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-
+	err = s.db.CheckForDuplicateName("Players", plr.Name)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
 	plr.Id = uuid.MakeV4()
 	err = s.db.SavePlayer(plr)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handlePUTPlayers(w http.ResponseWriter, r *http.Request) {
-	pID := r.Context().Value(":id").(string)
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	plr := Player{Id: pID}
-	err = json.Unmarshal(b, &plr)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	err = s.db.UpdatePlayer(plr)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)

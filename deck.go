@@ -55,7 +55,7 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 		dLink := hyper.Link{
-			Rel:  dck.Name,
+			Rel:  "details",
 			Href: resolve("./%d", dck.Id).String(),
 		}
 		item.AddLink(dLink)

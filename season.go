@@ -5,18 +5,19 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/uuid"
 )
 
 type Season struct {
-	Id      string    `json:"id"`
-	Name    string    `json:"name,omitempty"`
-	Start   time.Time `json:"start"`
-	End     time.Time `json:"end"`
-	Players []Player  `json:"players"`
+	Id       string   `json:"id"`
+	Name     string   `json:"name"`
+	Start    string   `json:"start,omitempty"`
+	End      string   `json:"end,omitempty"`
+	Finished bool     `json:"finished,omitempty"`
+	Format   string   `json:"format,omitempty"`
+	Players  []Player `json:"players,omitempty"`
 }
 
 func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,12 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, seas := range s.seasons {
+		seas.Players, err = s.db.FindPlayersInSeason(seas.Id)
+		if err != nil {
+			log.Println(err)
+			hyper.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
 		item := hyper.Item{
 			Label: seas.Name,
 			Type:  "season",
@@ -75,10 +82,11 @@ func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
 				},
 			}
 			pLink := hyper.Link{
-				Rel:  plr.Name,
+				Rel:  "details",
 				Href: resolve("../players/%s", plr.Id).String(),
 			}
 			item.AddLink(pLink)
+			plrs.AddItem(item)
 		}
 		sLink := hyper.Link{
 			Rel:  seas.Name,
@@ -143,36 +151,15 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = s.db.CheckForDuplicateName("Seasons", seas.Name)
+	if err != nil {
+		log.Println(err)
+		hyper.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	seas.Id = uuid.MakeV4()
 	err = s.db.SaveSeason(seas)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handlePUTSeason(w http.ResponseWriter, r *http.Request) {
-	sID := r.Context().Value(":id").(string)
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	seas := Season{}
-	err = json.Unmarshal(b, &seas)
-	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	seas.Id = sID
-	err = s.db.UpdateSeason(seas)
 	if err != nil {
 		log.Println(err)
 		hyper.WriteError(w, http.StatusInternalServerError, err)

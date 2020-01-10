@@ -22,11 +22,13 @@ func NewDB(dsn string) (*DB, error) {
 }
 
 func (db *DB) init() error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS "Seasons" ("id" TEXT PRIMARY KEY,"name" TEXT UNIQUE);`)
+	_, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS "Seasons" 
+	("id" TEXT PRIMARY KEY,"name" TEXT, "start" TEXT, "end" TEXT, "finished" INTEGER, "format" TEXT);`)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "Players" ("id" TEXT PRIMARY KEY,"name" TEXT UNIQUE);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "Players" ("id" TEXT PRIMARY KEY,"name" TEXT);`)
 	if err != nil {
 		return err
 	}
@@ -34,12 +36,11 @@ func (db *DB) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(
-		`CREATE TABLE IF NOT EXISTS "SeasonPlayers" ("seasonID" TEXT,"playerID" TEXT,
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS "SeasonPlayers" ("seasonID" TEXT,"playerID" TEXT,
 		FOREIGN KEY("playerID") REFERENCES "Players"("id"),
 		FOREIGN KEY("seasonID") REFERENCES "Seasons"("id"),
-		PRIMARY KEY("seasonID","playerID")
-		);`)
+		PRIMARY KEY("seasonID","playerID"));`)
 	if err != nil {
 		return err
 	}
@@ -54,9 +55,10 @@ func (db *DB) FindAllSeasons() ([]Season, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		seas := Season{}
-		err = rows.Scan(&seas.Id, &seas.Name)
+		err = rows.Scan(&seas.Id, &seas.Name, &seas.Start, &seas.End, &seas.Finished, &seas.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
@@ -74,8 +76,9 @@ func (db *DB) FindSeasonByID(id string) (Season, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return Season{}, err
 	}
+	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.Id, &result.Name)
+		err = rows.Scan(&result.Id, &result.Name, &result.Start, &result.End, &result.Finished, &result.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Season{}, err
@@ -85,23 +88,14 @@ func (db *DB) FindSeasonByID(id string) (Season, error) {
 }
 
 func (db *DB) SaveSeason(seas Season) error {
-	query := "INSERT INTO Seasons (id, name) VALUES (?, ?)"
-	_, err := db.Exec(query, seas.Id, seas.Name)
+	query := "INSERT OR REPLACE INTO Seasons (id, name, start, end, finished, format) VALUES (?, ?, ?, ?, ?, ?)"
+	_, err := db.Exec(query, seas.Id, seas.Name, seas.Start, seas.End, seas.Finished, seas.Format)
 	if err != nil {
 		err = fmt.Errorf("Exec: %v", err)
 		return err
 	}
-	return nil
-}
-
-func (db *DB) UpdateSeason(seas Season) error {
-	query := `
-			UPDATE Seasons
-			SET name = ?
-			WHERE id = ?`
-	_, err := db.Exec(query, seas.Name, seas.Id)
+	err = db.SavePlayersToSeason(seas.Id, seas.Players)
 	if err != nil {
-		err = fmt.Errorf("Exec: %v", err)
 		return err
 	}
 	return nil
@@ -115,6 +109,7 @@ func (db *DB) FindAllPlayers() ([]Player, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		plr := Player{}
 		err = rows.Scan(&plr.Id, &plr.Name)
@@ -135,6 +130,7 @@ func (db *DB) FindPlayerByID(id string) (Player, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return Player{}, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&result.Id, &result.Name)
 		if err != nil {
@@ -156,19 +152,6 @@ func (db *DB) SavePlayer(plr Player) error {
 	return nil
 }
 
-func (db *DB) UpdatePlayer(plr Player) error {
-	query := `
-			UPDATE Players
-			SET name = ?
-			WHERE id = ?`
-	_, err := db.Exec(query, plr.Name, plr.Id)
-	if err != nil {
-		err = fmt.Errorf("Exec: %v", err)
-		return err
-	}
-	return nil
-}
-
 func (db *DB) FindPlayersInSeason(seasID string) ([]Player, error) {
 	result := []Player{}
 	query := `
@@ -181,6 +164,7 @@ func (db *DB) FindPlayersInSeason(seasID string) ([]Player, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		plr := Player{}
 		err = rows.Scan(&plr.Id, &plr.Name)
@@ -193,6 +177,17 @@ func (db *DB) FindPlayersInSeason(seasID string) ([]Player, error) {
 	return result, nil
 }
 
+func (db *DB) SavePlayersToSeason(seasID string, plrs []Player) error {
+	query := "INSERT OR REPLACE INTO SeasonPlayers (seasonID, playerID) VALUES (?,?);"
+	for _, p := range plrs {
+		_, err := db.Exec(query, seasID, p.Id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (db *DB) FindAllDecks() ([]Deck, error) {
 	result := []Deck{}
 	query := "SELECT * FROM Decks ;"
@@ -201,6 +196,7 @@ func (db *DB) FindAllDecks() ([]Deck, error) {
 		err = fmt.Errorf("Query : %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		deck := Deck{}
 		err = rows.Scan(&deck.Id, &deck.Name, &deck.Link)
@@ -221,6 +217,7 @@ func (db *DB) FindDeckByID(id string) (Deck, error) {
 		err = fmt.Errorf("Query: %v", err)
 		return Deck{}, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&result.Id, &result.Name, &result.Link)
 		if err != nil {
@@ -237,6 +234,21 @@ func (db *DB) SaveDeck(deck Deck) error {
 	if err != nil {
 		err = fmt.Errorf("Exec: %v", err)
 		return err
+	}
+	return nil
+}
+
+func (db *DB) CheckForDuplicateName(table string, name string) error {
+	query := fmt.Sprintf("SELECT id FROM %s WHERE name = ?", table)
+
+	rows, err := db.Query(query, name)
+	if err != nil {
+		err = fmt.Errorf("Query: %v", err)
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return fmt.Errorf("Name already exists")
 	}
 	return nil
 }

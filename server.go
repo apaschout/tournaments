@@ -39,6 +39,8 @@ func (s *Server) Init() {
 	s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
 
 	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))
+	s.router.Route("/api/decks/:id").GET(chain.ThenFunc(s.handleGetDeck))
+	s.router.Route("/api/decks/").POST(chain.ThenFunc(s.handlePOSTDecks))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

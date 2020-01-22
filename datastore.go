@@ -9,8 +9,8 @@ type Datastore interface {
 type SeasonRepository interface {
 	FindAllSeasons() ([]Season, error)
 	FindSeasonByID(id SeasonID) (Season, error)
-	FindPlayersInSeason(seasID SeasonID) ([]PlayerID, error)
-	SavePlayersToSeason(seasID SeasonID, plrs []PlayerID) error
+	FindPlayersInSeason(seasID SeasonID) ([]SeasonPlayer, error)
+	SavePlayersToSeason(seasID SeasonID, plrs []SeasonPlayer) error
 	SaveSeason(seas Season) error
 	SeasonNameAvailable(name string) (bool, error)
 }

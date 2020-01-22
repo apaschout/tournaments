@@ -58,7 +58,7 @@ func (db *DB) FindAllSeasons() ([]Season, error) {
 	defer rows.Close()
 	for rows.Next() {
 		seas := Season{}
-		err = rows.Scan(&seas.ID, &seas.Name, &seas.Start, &seas.End, &seas.Finished, &seas.Format)
+		err = rows.Scan(&seas.ID, &seas.Name, &seas.Start, &seas.End, &seas.Ongoing, &seas.Finished, &seas.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
@@ -78,7 +78,7 @@ func (db *DB) FindSeasonByID(id SeasonID) (Season, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Finished, &result.Format)
+		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Ongoing, &result.Finished, &result.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Season{}, err
@@ -88,8 +88,8 @@ func (db *DB) FindSeasonByID(id SeasonID) (Season, error) {
 }
 
 func (db *DB) SaveSeason(seas Season) error {
-	query := "INSERT OR REPLACE INTO Seasons (id, name, start, end, finished, format) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err := db.Exec(query, seas.ID, seas.Name, seas.Start, seas.End, seas.Finished, seas.Format)
+	query := "INSERT OR REPLACE INTO Seasons (id, name, start, end, ongoing, finished, format) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	_, err := db.Exec(query, seas.ID, seas.Name, seas.Start, seas.End, seas.Ongoing, seas.Finished, seas.Format)
 	if err != nil {
 		err = fmt.Errorf("Exec: %v", err)
 		return err
@@ -152,8 +152,8 @@ func (db *DB) SavePlayer(plr Player) error {
 	return nil
 }
 
-func (db *DB) FindPlayersInSeason(seasID SeasonID) ([]PlayerID, error) {
-	result := []PlayerID{}
+func (db *DB) FindPlayersInSeason(seasID SeasonID) ([]SeasonPlayer, error) {
+	result := []SeasonPlayer{}
 	query := `
 			SELECT id
 			FROM Players
@@ -172,15 +172,15 @@ func (db *DB) FindPlayersInSeason(seasID SeasonID) ([]PlayerID, error) {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
 		}
-		result = append(result, plrID)
+		result = append(result, SeasonPlayer{ID: plrID})
 	}
 	return result, nil
 }
 
-func (db *DB) SavePlayersToSeason(seasID SeasonID, plrs []PlayerID) error {
+func (db *DB) SavePlayersToSeason(seasID SeasonID, plrs []SeasonPlayer) error {
 	query := "INSERT OR REPLACE INTO SeasonPlayers (seasonID, playerID) VALUES (?,?);"
-	for _, p := range plrs {
-		_, err := db.Exec(query, seasID, p)
+	for _, sPlr := range plrs {
+		_, err := db.Exec(query, seasID, sPlr.ID)
 		if err != nil {
 			return err
 		}

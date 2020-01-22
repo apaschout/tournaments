@@ -3,7 +3,6 @@ package tournaments
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/cognicraft/hyper"
@@ -30,8 +29,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 	s.players, err = s.db.FindAllPlayers()
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	for _, plr := range s.players {
@@ -49,8 +47,7 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	pID := PlayerID(r.Context().Value(":id").(string))
 	plr, err = s.db.FindPlayerByID(pID)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -61,22 +58,19 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	plr := Player{}
 	err = json.Unmarshal(b, &plr)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	ok, err := s.db.PlayerNameAvailable(plr.Name)
 	if !ok {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	_, err = uuid.Parse(string(plr.ID))
@@ -86,8 +80,7 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 	plr.ID = PlayerID(uuid.MakeV4())
 	err = s.db.SavePlayer(plr)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -99,11 +92,6 @@ func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Ite
 		Label: plr.Name,
 		Type:  "player",
 		Properties: []hyper.Property{
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: plr.ID,
-			},
 			{
 				Label: "Name",
 				Name:  "name",

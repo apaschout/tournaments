@@ -1,6 +1,7 @@
 package tournaments
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/cognicraft/hyper"
@@ -32,6 +33,7 @@ func (s *Server) Init() {
 
 	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETSeasons))
 	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETSeason))
+	s.router.Route("/api/seasons/:id").PATCH(chain.ThenFunc(s.handlePATCHSeason))
 	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTSeasons))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
@@ -68,4 +70,9 @@ func (s *Server) handleGETAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	res.AddLinks(links)
 	hyper.Write(w, http.StatusOK, res)
+}
+
+func handleError(w http.ResponseWriter, status int, err error) {
+	log.Println(err)
+	hyper.WriteError(w, http.StatusInternalServerError, err)
 }

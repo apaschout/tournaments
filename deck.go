@@ -3,7 +3,6 @@ package tournaments
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/cognicraft/hyper"
@@ -33,8 +32,7 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 	}
 	s.decks, err = s.db.FindAllDecks()
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	for _, dck := range s.decks {
@@ -51,8 +49,7 @@ func (s *Server) handleGetDeck(w http.ResponseWriter, r *http.Request) {
 
 	dck, err := s.db.FindDeckByID(dID)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -63,23 +60,20 @@ func (s *Server) handleGetDeck(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	dck := Deck{}
 	err = json.Unmarshal(b, &dck)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	ok, err := s.db.DeckNameAvailable(dck.Name)
 	if !ok {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	_, err = uuid.Parse(string(dck.ID))
@@ -89,8 +83,7 @@ func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
 	dck.ID = DeckID(uuid.MakeV4())
 	err = s.db.SaveDeck(dck)
 	if err != nil {
-		log.Println(err)
-		hyper.WriteError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 

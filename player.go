@@ -2,6 +2,7 @@ package tournaments
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -17,7 +18,6 @@ type Player struct {
 type PlayerID string
 
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
-	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Players",
@@ -43,7 +43,6 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
 	plr := Player{}
-	var err error
 	pID := PlayerID(r.Context().Value(":id").(string))
 	plr, err = s.db.FindPlayerByID(pID)
 	if err != nil {
@@ -53,6 +52,36 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 
 	res := plr.MakeDetailedHyperItem(resolve)
 	hyper.Write(w, http.StatusOK, res)
+}
+
+func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
+	cmd := hyper.ExtractCommand(r)
+	pID := PlayerID(r.Context().Value(":id").(string))
+	plr, err := s.db.FindPlayerByID(pID)
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, err)
+		return
+	}
+	switch cmd.Action {
+	case ActionChangeName:
+		newName := cmd.Arguments.String(ArgumentName)
+		ok, err := s.db.PlayerNameAvailable(newName)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if ok {
+			plr.ChangeName(newName)
+		}
+	default:
+		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
+		handleError(w, http.StatusInternalServerError, err)
+		return
+	}
+	err = s.db.SavePlayer(plr)
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, err)
+	}
 }
 
 func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +120,7 @@ func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Ite
 	item := hyper.Item{
 		Label: plr.Name,
 		Type:  "player",
+		ID:    string(plr.ID),
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
@@ -130,4 +160,8 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 	}
 	item.AddLink(link)
 	return item
+}
+
+func (plr *Player) ChangeName(newName string) {
+	plr.Name = newName
 }

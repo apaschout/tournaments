@@ -9,8 +9,8 @@ type Datastore interface {
 type SeasonRepository interface {
 	FindAllSeasons() ([]Season, error)
 	FindSeasonByID(id SeasonID) (Season, error)
-	FindPlayersInSeason(seasID SeasonID) ([]SeasonPlayer, error)
-	SavePlayersToSeason(seasID SeasonID, plrs []SeasonPlayer) error
+	FindPlayersInSeason(seasID SeasonID) ([]PlayerID, error)
+	SavePlayersToSeason(seasID SeasonID, plrs []PlayerID) error
 	SaveSeason(seas Season) error
 	SeasonNameAvailable(name string) (bool, error)
 }
@@ -20,6 +20,7 @@ type PlayerRepository interface {
 	FindPlayerByID(id PlayerID) (Player, error)
 	SavePlayer(plr Player) error
 	PlayerNameAvailable(name string) (bool, error)
+	PlayerExists(id PlayerID) (bool, error)
 }
 
 type DeckRepository interface {

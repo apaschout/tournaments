@@ -18,7 +18,6 @@ type Deck struct {
 type DeckID string
 
 func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
-	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Decks",
@@ -94,12 +93,8 @@ func (dck *Deck) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 	item := hyper.Item{
 		Label: dck.Name,
 		Type:  "deck",
+		ID:    string(dck.ID),
 		Properties: []hyper.Property{
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: dck.ID,
-			},
 			{
 				Label: "Name",
 				Name:  "name",

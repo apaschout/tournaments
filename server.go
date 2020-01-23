@@ -8,15 +8,18 @@ import (
 	"github.com/cognicraft/mux"
 )
 
+var err error
+
 type Server struct {
 	router  *mux.Router
 	db      Datastore
+	store   EventStore
 	seasons []Season
 	players []Player
 	decks   []Deck
 }
 
-func NewServer(db Datastore) *Server {
+func NewServer(db Datastore, es EventStore) *Server {
 	return &Server{
 		router: mux.New(),
 		db:     db,
@@ -33,11 +36,12 @@ func (s *Server) Init() {
 
 	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETSeasons))
 	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETSeason))
-	s.router.Route("/api/seasons/:id").PATCH(chain.ThenFunc(s.handlePATCHSeason))
+	s.router.Route("/api/seasons/:id").POST(chain.ThenFunc(s.handlePOSTSeason))
 	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTSeasons))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
+	s.router.Route("/api/players/:id").POST(chain.ThenFunc(s.handlePOSTPlayer))
 	s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
 
 	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))

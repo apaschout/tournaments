@@ -12,29 +12,32 @@ import (
 )
 
 type Season struct {
-	ID       SeasonID       `json:"id"`
-	Name     string         `json:"name"`
-	Start    string         `json:"start,omitempty"`
-	End      string         `json:"end,omitempty"`
-	Ongoing  bool           `json:"ongoing,omitempty"`
-	Finished bool           `json:"finished,omitempty"`
-	Format   string         `json:"format,omitempty"`
-	Players  []SeasonPlayer `json:"players,omitempty"`
-}
-
-type SeasonPlayer struct {
-	ID   PlayerID `json:"id"`
-	Deck DeckID   `json:"deck,omitempty"`
-}
-
-type PatchPayload struct {
-	Action string `json:"action"`
+	ID       SeasonID   `json:"id"`
+	Name     string     `json:"name"`
+	Start    string     `json:"start,omitempty"`
+	End      string     `json:"end,omitempty"`
+	Ongoing  bool       `json:"ongoing,omitempty"`
+	Finished bool       `json:"finished,omitempty"`
+	Format   string     `json:"format,omitempty"`
+	Players  []PlayerID `json:"players,omitempty"`
 }
 
 type SeasonID string
 
+const (
+	ActionStart      = "start"
+	ActionEnd        = "end"
+	ActionAddPlr     = "addPlayer"
+	ActionDelPlr     = "delPlayer"
+	ActionChangeName = "changeName"
+)
+
+const (
+	ArgumentPlayerID = "pID"
+	ArgumentName     = "name"
+)
+
 func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
-	var err error
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Seasons",
@@ -93,39 +96,68 @@ func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 	hyper.Write(w, http.StatusOK, res)
 }
 
-func (s *Server) handlePATCHSeason(w http.ResponseWriter, r *http.Request) {
-	jsn, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
-		return
-	}
-	pl := PatchPayload{}
-	err = json.Unmarshal(jsn, &pl)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
-		return
-	}
+func (s *Server) handlePOSTSeason(w http.ResponseWriter, r *http.Request) {
+	cmd := hyper.ExtractCommand(r)
 	sID := SeasonID(r.Context().Value(":id").(string))
 	seas, err := s.db.FindSeasonByID(sID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	switch pl.Action {
-	case "start":
+	switch cmd.Action {
+	case ActionStart:
 		if seas.Start != "" {
 			err = fmt.Errorf("Season already started.")
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 		seas.Begin()
-	case "end":
+	case ActionEnd:
 		if seas.End != "" {
 			err = fmt.Errorf("Season already ended.")
 			handleError(w, http.StatusInternalServerError, err)
 			return
+		} else if seas.Start == "" {
+			err = fmt.Errorf("Season has not started yet.")
+			handleError(w, http.StatusInternalServerError, err)
+			return
 		}
 		seas.Finish()
+	case ActionAddPlr:
+		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		ok, err := s.db.PlayerExists(pID)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if ok {
+			err = seas.AddPlayer(pID)
+			if err != nil {
+				handleError(w, http.StatusInternalServerError, err)
+				return
+			}
+		}
+	case ActionDelPlr:
+		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		err = seas.RemovePlayer(pID)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+	case ActionChangeName:
+		newName := cmd.Arguments.String(ArgumentName)
+		ok, err := s.db.SeasonNameAvailable(newName)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if ok {
+			seas.ChangeName(newName)
+		}
+	default:
+		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
+		handleError(w, http.StatusInternalServerError, err)
+		return
 	}
 	err = s.db.SaveSeason(seas)
 	if err != nil {
@@ -170,14 +202,15 @@ func (s *Server) MakeSeasonPlayersHyperItem(seas Season, resolve hyper.ResolverF
 		Label: "Participating Players",
 		Type:  "players",
 	}
-	for _, sPlr := range seas.Players {
-		plr, err := s.db.FindPlayerByID(sPlr.ID)
+	for _, pID := range seas.Players {
+		plr, err := s.db.FindPlayerByID(pID)
 		if err != nil {
 			return plrs, err
 		}
 		item := hyper.Item{
 			Label: "Player",
 			Type:  "player",
+			ID:    string(pID),
 			Properties: []hyper.Property{
 				{
 					Label: "Name",
@@ -188,7 +221,7 @@ func (s *Server) MakeSeasonPlayersHyperItem(seas Season, resolve hyper.ResolverF
 		}
 		pLink := hyper.Link{
 			Rel:  "details",
-			Href: resolve("../players/%s", sPlr.ID).String(),
+			Href: resolve("../players/%s", pID).String(),
 		}
 		item.AddLink(pLink)
 		plrs.AddItem(item)
@@ -200,6 +233,7 @@ func (seas *Season) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.It
 	item := hyper.Item{
 		Label: seas.Name,
 		Type:  "season",
+		ID:    string(seas.ID),
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
@@ -268,13 +302,40 @@ func (seas *Season) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item
 
 func (seas *Season) Begin() {
 	date := time.Now()
-	seas.Start = date.Format("2006-01-02T15:04:05")
+	seas.Start = date.Format("2006-01-02 15:04:05Z")
 	seas.Ongoing = true
 }
 
 func (seas *Season) Finish() {
 	date := time.Now()
-	seas.End = date.Format("2006-01-02T15:04:05")
+	seas.End = date.Format("2006-01-02 15:04:05Z")
 	seas.Ongoing = false
 	seas.Finished = true
+}
+
+func (seas *Season) AddPlayer(pID PlayerID) error {
+	for _, p := range seas.Players {
+		if p == pID {
+			err = fmt.Errorf("%s already exists in Season: %s", pID, seas.ID)
+			return err
+		}
+	}
+	seas.Players = append(seas.Players, pID)
+
+	return nil
+}
+
+func (seas *Season) RemovePlayer(pID PlayerID) error {
+	for i, p := range seas.Players {
+		if p == pID {
+			seas.Players = append(seas.Players[:i], seas.Players[i+1:]...)
+			return nil
+		}
+	}
+	err = fmt.Errorf("%s not found in Season: %s", pID, seas.ID)
+	return err
+}
+
+func (seas *Season) ChangeName(newName string) {
+	seas.Name = newName
 }

@@ -29,7 +29,7 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 			Href: resolve(".").String(),
 		},
 	}
-	s.decks, err = s.db.FindAllDecks()
+	s.decks, err = s.p.FindAllDecks()
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -46,7 +46,7 @@ func (s *Server) handleGetDeck(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
 	dID := DeckID(r.Context().Value(":id").(string))
 
-	dck, err := s.db.FindDeckByID(dID)
+	dck, err := s.p.FindDeckByID(dID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -70,7 +70,7 @@ func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := s.db.DeckNameAvailable(dck.Name)
+	ok, err := s.p.IsDeckNameAvailable(dck.Name)
 	if !ok {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -80,7 +80,7 @@ func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
 		dck.ID = DeckID(uuid.MakeV4())
 	}
 	dck.ID = DeckID(uuid.MakeV4())
-	err = s.db.SaveDeck(dck)
+	// err = s.db.SaveDeck(dck)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return

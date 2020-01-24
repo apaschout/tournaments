@@ -1,18 +1,19 @@
 package tournaments
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
+	"github.com/cognicraft/event"
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/uuid"
 )
 
 type Player struct {
-	ID   PlayerID `json:"id,omitempty"`
-	Name string   `json:"name"`
+	ID      PlayerID `json:"id,omitempty"`
+	Version uint64   `json:"version"`
+	Name    string   `json:"name"`
+	*event.ChangeRecorder
 }
 
 type PlayerID string
@@ -27,7 +28,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		Rel:  "self",
 		Href: resolve(".").String(),
 	}
-	s.players, err = s.db.FindAllPlayers()
+	s.players, err = s.p.FindAllPlayers()
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -44,7 +45,7 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
 	plr := Player{}
 	pID := PlayerID(r.Context().Value(":id").(string))
-	plr, err = s.db.FindPlayerByID(pID)
+	plr, err = s.p.FindPlayerByID(pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -57,7 +58,8 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
-	plr, err := s.db.FindPlayerByID(pID)
+	// plr, err := s.db.FindPlayerByID(pID)
+	plr, err := LoadPlayer(s.es, pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -65,54 +67,43 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	switch cmd.Action {
 	case ActionChangeName:
 		newName := cmd.Arguments.String(ArgumentName)
-		ok, err := s.db.PlayerNameAvailable(newName)
+		err = plr.ChangeName(newName)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
-		}
-		if ok {
-			plr.ChangeName(newName)
 		}
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = s.db.SavePlayer(plr)
+	err = plr.Save(s.es, nil)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
+		return
 	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+	cmd := hyper.ExtractCommand(r)
+	switch cmd.Action {
+	case ActionCreate:
+		plr := NewPlayer()
+		err = plr.Create(PlayerID(uuid.MakeV4()))
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		err = plr.Save(s.es, nil)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+	default:
+		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"))
 		return
 	}
-
-	plr := Player{}
-	err = json.Unmarshal(b, &plr)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
-		return
-	}
-	ok, err := s.db.PlayerNameAvailable(plr.Name)
-	if !ok {
-		handleError(w, http.StatusInternalServerError, err)
-		return
-	}
-	_, err = uuid.Parse(string(plr.ID))
-	if err != nil {
-		plr.ID = PlayerID(uuid.MakeV4())
-	}
-	plr.ID = PlayerID(uuid.MakeV4())
-	err = s.db.SavePlayer(plr)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
-		return
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -160,8 +151,4 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 	}
 	item.AddLink(link)
 	return item
-}
-
-func (plr *Player) ChangeName(newName string) {
-	plr.Name = newName
 }

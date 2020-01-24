@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/cognicraft/event"
+	"github.com/cognicraft/sqlutil"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -23,28 +25,23 @@ func NewDB(dsn string) (*DB, error) {
 
 func (db *DB) init() error {
 	_, err := db.Exec(`
-	CREATE TABLE IF NOT EXISTS "Seasons" 
-	("id" TEXT PRIMARY KEY,"name" TEXT, "start" TEXT, "end" TEXT, "finished" INTEGER, "format" TEXT);`)
+	CREATE TABLE IF NOT EXISTS seasons 
+	(id TEXT PRIMARY KEY, name TEXT, start TEXT, end TEXT, format TEXT);`)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "Players" ("id" TEXT PRIMARY KEY,"name" TEXT);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT);`)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "Decks" ("id" TEXT PRIMARY KEY,"name" TEXT, "link" TEXT);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS decks (id TEXT PRIMARY KEY, name TEXT, link TEXT);`)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS "SeasonPlayers" ("seasonID" TEXT,"playerID" TEXT,
-		FOREIGN KEY("playerID") REFERENCES "Players"("id"),
-		FOREIGN KEY("seasonID") REFERENCES "Seasons"("id"),
-		PRIMARY KEY("seasonID","playerID"));`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS metadata (key TEXT, value INTEGER);`)
 	if err != nil {
 		return err
 	}
-	// need to add SeasonPlayerDecks
 	return nil
 }
 
@@ -88,24 +85,9 @@ func (db *DB) FindSeasonByID(id SeasonID) (Season, error) {
 	return result, nil
 }
 
-func (db *DB) SaveSeason(seas Season) error {
-	query := "INSERT OR REPLACE INTO Seasons (id, name, start, end, ongoing, finished, format) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	_, err := db.Exec(query, seas.ID, seas.Name, seas.Start, seas.End, seas.Ongoing, seas.Finished, seas.Format)
-	if err != nil {
-		err = fmt.Errorf("Exec: %v", err)
-		return err
-	}
-	err = db.SavePlayersToSeason(seas.ID, seas.Players)
-	if err != nil {
-		return err
-	}
-	log.Printf("Successfully saved Season with ID:%s", seas.ID)
-	return nil
-}
-
 func (db *DB) FindAllPlayers() ([]Player, error) {
 	result := []Player{}
-	query := "SELECT * FROM Players"
+	query := "SELECT * FROM players"
 	rows, err := db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -141,54 +123,6 @@ func (db *DB) FindPlayerByID(id PlayerID) (Player, error) {
 		}
 	}
 	return result, nil
-}
-
-func (db *DB) SavePlayer(plr Player) error {
-	query := "INSERT OR REPLACE INTO Players (id, name) VALUES (?, ?)"
-	_, err := db.Exec(query, plr.ID, plr.Name)
-	if err != nil {
-		err = fmt.Errorf("Exec: %v", err)
-		return err
-	}
-	log.Printf("Successfully saved Player with ID:%s", plr.ID)
-	return nil
-}
-
-func (db *DB) FindPlayersInSeason(seasID SeasonID) ([]PlayerID, error) {
-	result := []PlayerID{}
-	query := `
-			SELECT id
-			FROM Players
-			INNER JOIN SeasonPlayerDecks ON SeasonPlayerDecks.playerID = Players.id
-			WHERE seasonID = ?`
-	rows, err := db.Query(query, seasID)
-	if err != nil {
-		err = fmt.Errorf("Query: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var plrID PlayerID
-		err = rows.Scan(&plrID)
-		if err != nil {
-			err = fmt.Errorf("Scan: %v", err)
-			return nil, err
-		}
-		result = append(result, plrID)
-	}
-	return result, nil
-}
-
-func (db *DB) SavePlayersToSeason(seasID SeasonID, plrs []PlayerID) error {
-	query := "INSERT OR REPLACE INTO SeasonPlayerDecks (seasonID, playerID, deckID) VALUES (?, ?, ?);"
-	for _, pID := range plrs {
-		_, err := db.Exec(query, seasID, pID, "")
-		if err != nil {
-			return err
-		}
-	}
-	log.Printf("Successfully saved Players:%v to Season:%s", plrs, seasID)
-	return nil
 }
 
 func (db *DB) FindAllDecks() ([]Deck, error) {
@@ -231,17 +165,7 @@ func (db *DB) FindDeckByID(id DeckID) (Deck, error) {
 	return result, nil
 }
 
-func (db *DB) SaveDeck(deck Deck) error {
-	query := "INSERT OR REPLACE INTO Decks (id, name, link) VALUES (?, ?, ?);"
-	_, err := db.Exec(query, deck.ID, deck.Name, deck.Link)
-	if err != nil {
-		err = fmt.Errorf("Exec: %v", err)
-		return err
-	}
-	return nil
-}
-
-func (db *DB) SeasonNameAvailable(name string) (bool, error) {
+func (db *DB) IsSeasonNameAvailable(name string) (bool, error) {
 	err := db.checkNameDuplicate("Seasons", name)
 	if err != nil {
 		return false, err
@@ -249,7 +173,7 @@ func (db *DB) SeasonNameAvailable(name string) (bool, error) {
 	return true, nil
 }
 
-func (db *DB) PlayerNameAvailable(name string) (bool, error) {
+func (db *DB) IsPlayerNameAvailable(name string) (bool, error) {
 	err := db.checkNameDuplicate("Players", name)
 	if err != nil {
 		return false, err
@@ -257,7 +181,7 @@ func (db *DB) PlayerNameAvailable(name string) (bool, error) {
 	return true, nil
 }
 
-func (db *DB) DeckNameAvailable(name string) (bool, error) {
+func (db *DB) IsDeckNameAvailable(name string) (bool, error) {
 	err = db.checkNameDuplicate("Decks", name)
 	if err != nil {
 		return false, err
@@ -303,4 +227,56 @@ func (db *DB) checkNameDuplicate(table string, name string) error {
 		return fmt.Errorf("Name already exists")
 	}
 	return nil
+}
+
+func (db *DB) On(rec event.Record) {
+	codec, err := Codec()
+	if err != nil {
+		return
+	}
+	e, err := codec.Decode(rec)
+	if err != nil {
+		return
+	}
+	switch e := e.(type) {
+	case SeasonCreated:
+		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
+			query := "INSERT INTO players (id, name, start, end, format) VALUES (?, ?, ?, ?, ?)"
+			_, err = db.Exec(query, e.Season, "", "", "", "")
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	case SeasonNameChanged:
+		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
+			query := "UPDATE seasons SET name = ? WHERE id = ?;"
+			_, err = db.Exec(query, e.Name, e.Season)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	case PlayerCreated:
+		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
+			query := "INSERT INTO players (id, name) VALUES (?, ?)"
+			_, err = db.Exec(query, e.Player, 0, "")
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	case PlayerNameChanged:
+		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
+			query := "UPDATE players SET name = ? WHERE id = ?;"
+			_, err = db.Exec(query, e.Name, e.Player)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err != nil {
+		log.Println(err)
+	}
 }

@@ -1,5 +1,7 @@
 github.com/cognicraft/event v0.0.0-20191206200407-0ab9b7bd9e45 h1:IgrlLjnSa+krILRxh/O0bUUJVNVdXyVu0kYIMnTpeiU=
 github.com/cognicraft/event v0.0.0-20191206200407-0ab9b7bd9e45/go.mod h1:c3LtrBFYrIdtqR0qFMnUPGA9XC/IJHdEtxPps/2PcRs=
+github.com/cognicraft/event v0.0.0-20200124065921-7b04f09ca78a h1:zMoB5154Sqr2ti064jexOukHksxKGyUfxkOtg0kzzG8=
+github.com/cognicraft/event v0.0.0-20200124065921-7b04f09ca78a/go.mod h1:c3LtrBFYrIdtqR0qFMnUPGA9XC/IJHdEtxPps/2PcRs=
 github.com/cognicraft/hyper v0.0.0-20190930123820-31ff2115ed27 h1:t9IjmYU1oiRAR7lSgMxmTcWHwsRtTL+PNe2FOdQZIUE=
 github.com/cognicraft/hyper v0.0.0-20190930123820-31ff2115ed27/go.mod h1:0kLt0pLOSqOLZiFgyyWczlaNSFNiuuMmEKKOnCvIuPE=
 github.com/cognicraft/io v0.0.0-20191202083459-2ba59d0a2abc h1:IXVle0KMsXb3n21JXY4jhiE/LpYI4ke1kSUk6S++EkE=

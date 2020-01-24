@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/cognicraft/event"
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/mux"
 )
@@ -12,17 +13,18 @@ var err error
 
 type Server struct {
 	router  *mux.Router
-	db      Datastore
-	store   EventStore
+	p       Projection
+	es      *event.Store
 	seasons []Season
 	players []Player
 	decks   []Deck
 }
 
-func NewServer(db Datastore, es EventStore) *Server {
+func NewServer(p Projection, es *event.Store) *Server {
 	return &Server{
 		router: mux.New(),
-		db:     db,
+		p:      p,
+		es:     es,
 	}
 }
 

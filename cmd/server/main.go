@@ -10,24 +10,27 @@ import (
 )
 
 const (
-	dsn           = "tournaments.db"
+	dsn           = ":memory:"
 	dsnEventStore = "events.db"
 	port          = ":8080"
 )
 
 func main() {
-	store, err := event.NewStore(dsnEventStore)
+	es, err := event.NewStore(dsnEventStore)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer store.Close()
+	defer es.Close()
+	sub := es.SubscribeToStreamFromCurrent(event.All)
+	defer sub.Cancel()
 
 	db, err := tournaments.NewDB(dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
+	sub.On(db.On)
 
-	s := tournaments.NewServer(db, store)
+	s := tournaments.NewServer(db, es)
 	s.Init()
 	fmt.Printf("Server running on %s\n", port)
 	err = http.ListenAndServe(port, s)

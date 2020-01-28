@@ -40,10 +40,10 @@ func (s *Server) init() {
 	)
 	s.router.Route("/api/").GET(chain.ThenFunc(s.handleGETAPI))
 
-	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETTournaments))
-	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETTournament))
-	s.router.Route("/api/seasons/:id").POST(chain.ThenFunc(s.handlePOSTTournament))
-	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTTournaments))
+	s.router.Route("/api/tournaments/").GET(chain.ThenFunc(s.handleGETTournaments))
+	s.router.Route("/api/tournaments/:id").GET(chain.ThenFunc(s.handleGETTournament))
+	s.router.Route("/api/tournaments/:id").POST(chain.ThenFunc(s.handlePOSTTournament))
+	s.router.Route("/api/tournaments/").POST(chain.ThenFunc(s.handlePOSTTournaments))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))

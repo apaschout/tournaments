@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	storeDSN  = ":memory:"
+	storeDSN  = "test.db"
 	eventsDSN = "events.db"
 	port      = ":8080"
 )

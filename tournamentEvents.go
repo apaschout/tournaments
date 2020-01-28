@@ -35,6 +35,13 @@ type TournamentEnded struct {
 	End        time.Time    `json:"end"`
 }
 
+type TournamentPlayerRegistered struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Player     PlayerID     `json:"player"`
+}
+
 func NewTournament() *Tournament {
 	return &Tournament{
 		ChangeRecorder: event.NewChangeRecorder(),
@@ -71,6 +78,25 @@ func (trn *Tournament) ChangeName(name string) error {
 		OccurredOn: time.Now().UTC(),
 		Tournament: trn.ID,
 		Name:       name,
+	})
+	return nil
+}
+
+func (trn *Tournament) AddPlayer(pID PlayerID) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if pID == "" {
+		return fmt.Errorf("No Player specified")
+	}
+	if trn.isPlayerRegistered(pID) {
+		return fmt.Errorf("Player already registered")
+	}
+	trn.Apply(TournamentPlayerRegistered{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Player:     pID,
 	})
 	return nil
 }
@@ -122,6 +148,8 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.ID = e.Tournament
 	case TournamentNameChanged:
 		trn.Name = e.Name
+	case TournamentPlayerRegistered:
+		trn.Players = append(trn.Players, e.Player)
 	case TournamentStarted:
 		trn.Start = e.Start.String()
 	case TournamentEnded:
@@ -151,13 +179,13 @@ func (trn *Tournament) Save(es *event.Store, metadata interface{}) error {
 	return nil
 }
 
-func LoadTournament(es *event.Store, sID TournamentID) (*Tournament, error) {
+func LoadTournament(es *event.Store, tID TournamentID) (*Tournament, error) {
 	codec, err := Codec()
 	if err != nil {
 		return nil, err
 	}
 	trn := NewTournament()
-	streamID := string(sID)
+	streamID := string(tID)
 	for rec := range es.Load(streamID) {
 		e, err := codec.Decode(rec)
 		if err != nil {
@@ -169,4 +197,13 @@ func LoadTournament(es *event.Store, sID TournamentID) (*Tournament, error) {
 		return nil, fmt.Errorf("Tournament not found")
 	}
 	return trn, nil
+}
+
+func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
+	for _, v := range trn.Players {
+		if v == pID {
+			return true
+		}
+	}
+	return false
 }

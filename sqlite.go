@@ -26,7 +26,7 @@ func (s *Store) init() error {
 		return err
 	}
 	s.db = db
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT PRIMARY KEY, name TEXT, start TEXT, end TEXT, format TEXT);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT, name TEXT, start TEXT, end TEXT, format TEXT, PRIMARY KEY (id));`)
 	if err != nil {
 		return err
 	}
@@ -35,6 +35,10 @@ func (s *Store) init() error {
 		return err
 	}
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS decks (id TEXT PRIMARY KEY, name TEXT, link TEXT);`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS registered_players (tournament TEXT, player TEXT, PRIMARY KEY (tournament, player));`)
 	if err != nil {
 		return err
 	}
@@ -277,6 +281,16 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: TournamentNameChanged")
+			return nil
+		})
+	case TournamentPlayerRegistered:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "INSERT INTO registered_players (tournament, player) VALUES (?, ?);"
+			_, err = t.Exec(query, e.Tournament, e.Player)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentPlayerRegistered")
 			return nil
 		})
 	case PlayerCreated:

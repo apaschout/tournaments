@@ -66,6 +66,11 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	switch cmd.Action {
 	case ActionChangeName:
 		newName := cmd.Arguments.String(ArgumentName)
+		ok, err := s.p.IsPlayerNameAvailable(newName)
+		if !ok {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
 		err = plr.ChangeName(newName)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)

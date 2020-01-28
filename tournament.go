@@ -25,12 +25,12 @@ type Tournament struct {
 type TournamentID string
 
 const (
-	ActionStart      = "start"
-	ActionEnd        = "end"
-	ActionAddPlr     = "addPlayer"
-	ActionDelPlr     = "delPlayer"
-	ActionChangeName = "changeName"
-	ActionCreate     = "create"
+	ActionStart        = "start"
+	ActionEnd          = "end"
+	ActionAddPlayer    = "add-player"
+	ActionRemovePlayer = "remove-player"
+	ActionChangeName   = "change-name"
+	ActionCreate       = "create"
 )
 
 const (
@@ -103,14 +103,28 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-	case ActionAddPlr:
-		handleError(w, http.StatusNotImplemented, fmt.Errorf("Action not implemented yet"))
-		return
-	case ActionDelPlr:
+	case ActionAddPlayer:
+		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		ok, err := s.p.PlayerExists(pID)
+		if !ok {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		err = trn.AddPlayer(pID)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+	case ActionRemovePlayer:
 		handleError(w, http.StatusNotImplemented, fmt.Errorf("Action not implemented yet"))
 		return
 	case ActionChangeName:
 		newName := cmd.Arguments.String(ArgumentName)
+		ok, err := s.p.IsTournamentNameAvailable(newName)
+		if !ok {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
 		err = trn.ChangeName(newName)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)

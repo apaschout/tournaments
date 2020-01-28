@@ -4,19 +4,19 @@ import "github.com/cognicraft/event"
 
 func Codec() (*event.Codec, error) {
 	c := event.NewCodec()
-	err = c.Register("season:created", SeasonCreated{})
+	err = c.Register("tournament:created", TournamentCreated{})
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("season:name-changed", SeasonNameChanged{})
+	err = c.Register("tournament:name-changed", TournamentNameChanged{})
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("season:started", SeasonStarted{})
+	err = c.Register("tournament:started", TournamentStarted{})
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("season:ended", SeasonEnded{})
+	err = c.Register("tournament:ended", TournamentEnded{})
 	if err != nil {
 		return nil, err
 	}

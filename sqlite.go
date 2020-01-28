@@ -10,23 +10,23 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type DB struct {
-	*sql.DB
+type Store struct {
+	dsn string
+	db  *sql.DB
 }
 
-func NewDB(dsn string) (*DB, error) {
-	db, err := sql.Open("sqlite3", dsn)
+func NewStore(dsn string) (*Store, error) {
+	s := &Store{dsn: dsn}
+	return s, s.init()
+}
+
+func (s *Store) init() error {
+	db, err := sql.Open("sqlite3", s.dsn)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	store := &DB{db}
-	return store, store.init()
-}
-
-func (db *DB) init() error {
-	_, err := db.Exec(`
-	CREATE TABLE IF NOT EXISTS seasons 
-	(id TEXT PRIMARY KEY, name TEXT, start TEXT, end TEXT, format TEXT);`)
+	s.db = db
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT PRIMARY KEY, name TEXT, start TEXT, end TEXT, format TEXT);`)
 	if err != nil {
 		return err
 	}
@@ -38,57 +38,57 @@ func (db *DB) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS metadata (key TEXT, value INTEGER);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value INTEGER);`)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (db *DB) FindAllSeasons() ([]Season, error) {
-	result := []Season{}
-	query := "SELECT * FROM Seasons"
-	rows, err := db.Query(query)
+func (s *Store) FindAllTournaments() ([]Tournament, error) {
+	result := []Tournament{}
+	query := "SELECT id, name FROM tournaments"
+	rows, err := s.db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		seas := Season{}
-		err = rows.Scan(&seas.ID, &seas.Name, &seas.Start, &seas.End, &seas.Ongoing, &seas.Finished, &seas.Format)
+		trn := Tournament{}
+		err = rows.Scan(&trn.ID, &trn.Name)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
 		}
-		result = append(result, seas)
+		result = append(result, trn)
 	}
 	return result, nil
 }
 
-func (db *DB) FindSeasonByID(id SeasonID) (Season, error) {
-	result := Season{}
-	query := "SELECT * FROM Seasons WHERE id = ?"
-	rows, err := db.Query(query, id)
+func (s *Store) FindTournamentByID(id TournamentID) (Tournament, error) {
+	result := Tournament{}
+	query := "SELECT * FROM tournaments WHERE id = ?"
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
-		return Season{}, err
+		return Tournament{}, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Ongoing, &result.Finished, &result.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
-			return Season{}, err
+			return Tournament{}, err
 		}
 	}
 	return result, nil
 }
 
-func (db *DB) FindAllPlayers() ([]Player, error) {
+func (s *Store) FindAllPlayers() ([]Player, error) {
 	result := []Player{}
-	query := "SELECT * FROM players"
-	rows, err := db.Query(query)
+	query := "SELECT id, name FROM players"
+	rows, err := s.db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
 		return nil, err
@@ -106,10 +106,10 @@ func (db *DB) FindAllPlayers() ([]Player, error) {
 	return result, nil
 }
 
-func (db *DB) FindPlayerByID(id PlayerID) (Player, error) {
+func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	result := Player{}
 	query := "SELECT * FROM Players WHERE id = ?"
-	rows, err := db.Query(query, id)
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
 		return Player{}, err
@@ -125,10 +125,10 @@ func (db *DB) FindPlayerByID(id PlayerID) (Player, error) {
 	return result, nil
 }
 
-func (db *DB) FindAllDecks() ([]Deck, error) {
+func (s *Store) FindAllDecks() ([]Deck, error) {
 	result := []Deck{}
 	query := "SELECT * FROM Decks ;"
-	rows, err := db.Query(query)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query : %v", err)
 		return nil, err
@@ -146,10 +146,10 @@ func (db *DB) FindAllDecks() ([]Deck, error) {
 	return result, nil
 }
 
-func (db *DB) FindDeckByID(id DeckID) (Deck, error) {
+func (s *Store) FindDeckByID(id DeckID) (Deck, error) {
 	result := Deck{}
 	query := "SELECT * FROM Decks WHERE id = ?;"
-	rows, err := db.Query(query, id)
+	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
 		return Deck{}, err
@@ -165,32 +165,32 @@ func (db *DB) FindDeckByID(id DeckID) (Deck, error) {
 	return result, nil
 }
 
-func (db *DB) IsSeasonNameAvailable(name string) (bool, error) {
-	err := db.checkNameDuplicate("Seasons", name)
+func (s *Store) IsTournamentNameAvailable(name string) (bool, error) {
+	err := s.checkNameDuplicate("tournaments", name)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (db *DB) IsPlayerNameAvailable(name string) (bool, error) {
-	err := db.checkNameDuplicate("Players", name)
+func (s *Store) IsPlayerNameAvailable(name string) (bool, error) {
+	err := s.checkNameDuplicate("players", name)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (db *DB) IsDeckNameAvailable(name string) (bool, error) {
-	err = db.checkNameDuplicate("Decks", name)
+func (s *Store) IsDeckNameAvailable(name string) (bool, error) {
+	err = s.checkNameDuplicate("decks", name)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (db *DB) PlayerExists(ID PlayerID) (bool, error) {
-	err = db.checkID("Players", string(ID))
+func (s *Store) PlayerExists(ID PlayerID) (bool, error) {
+	err = s.checkID("players", string(ID))
 	if err != nil {
 		return false, err
 	}
@@ -198,10 +198,10 @@ func (db *DB) PlayerExists(ID PlayerID) (bool, error) {
 }
 
 //throws error if ID does not exist
-func (db *DB) checkID(table string, ID string) error {
+func (s *Store) checkID(table string, ID string) error {
 	query := fmt.Sprintf("SELECT 0 FROM %s WHERE id = ?;", table)
 
-	rows, err := db.Query(query, ID)
+	rows, err := s.db.Query(query, ID)
 	if err != nil {
 		err = fmt.Errorf("Checking for ID existence: %v", err)
 		return err
@@ -214,10 +214,10 @@ func (db *DB) checkID(table string, ID string) error {
 }
 
 //throws error if name already exists
-func (db *DB) checkNameDuplicate(table string, name string) error {
+func (s *Store) checkNameDuplicate(table string, name string) error {
 	query := fmt.Sprintf("SELECT 0 FROM %s WHERE name = ?;", table)
 
-	rows, err := db.Query(query, name)
+	rows, err := s.db.Query(query, name)
 	if err != nil {
 		err = fmt.Errorf("Checking for name availability: %v", err)
 		return err
@@ -229,7 +229,26 @@ func (db *DB) checkNameDuplicate(table string, name string) error {
 	return nil
 }
 
-func (db *DB) On(rec event.Record) {
+func (s *Store) GetVersion() uint64 {
+	var res uint64
+	query := `SELECT value FROM metadata WHERE key = "version"`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		log.Println(err)
+		return 0
+	}
+	defer rows.Close()
+	if rows.Next() {
+		err = rows.Scan(&res)
+		if err != nil {
+			log.Println(err)
+			return 0
+		}
+	}
+	return res
+}
+
+func (s *Store) On(rec event.Record) {
 	codec, err := Codec()
 	if err != nil {
 		return
@@ -239,43 +258,56 @@ func (db *DB) On(rec event.Record) {
 		return
 	}
 	switch e := e.(type) {
-	case SeasonCreated:
-		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id, name, start, end, format) VALUES (?, ?, ?, ?, ?)"
-			_, err = db.Exec(query, e.Season, "", "", "", "")
+	case TournamentCreated:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "INSERT INTO tournaments (id) VALUES (?);"
+			_, err = t.Exec(query, e.Tournament)
 			if err != nil {
+				log.Printf("%v", err)
 				return err
 			}
+			log.Println("Projection: TournamentCreated")
 			return nil
 		})
-	case SeasonNameChanged:
-		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
-			query := "UPDATE seasons SET name = ? WHERE id = ?;"
-			_, err = db.Exec(query, e.Name, e.Season)
+	case TournamentNameChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET name = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.Name, e.Tournament)
 			if err != nil {
 				return err
 			}
+			log.Println("Projection: TournamentNameChanged")
 			return nil
 		})
 	case PlayerCreated:
-		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id, name) VALUES (?, ?)"
-			_, err = db.Exec(query, e.Player, 0, "")
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "INSERT INTO players (id) VALUES (?);"
+			_, err = t.Exec(query, e.Player)
 			if err != nil {
 				return err
 			}
+			log.Println("Projection: PlayerCreated")
 			return nil
 		})
 	case PlayerNameChanged:
-		err = sqlutil.Transact(db.DB, func(t *sql.Tx) error {
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
 			query := "UPDATE players SET name = ? WHERE id = ?;"
-			_, err = db.Exec(query, e.Name, e.Player)
+			_, err = t.Exec(query, e.Name, e.Player)
 			if err != nil {
 				return err
 			}
+			log.Println("Projection: PlayerNameChanged")
 			return nil
 		})
 	}
+	err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+		query := `UPDATE metadata SET value = value + 1 WHERE key = "version"`
+		_, err := t.Exec(query)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		log.Println(err)
 	}

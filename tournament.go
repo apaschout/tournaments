@@ -9,20 +9,20 @@ import (
 	"github.com/cognicraft/uuid"
 )
 
-type Season struct {
-	ID       SeasonID   `json:"id"`
-	Version  uint64     `json:"version"`
-	Name     string     `json:"name"`
-	Start    string     `json:"start,omitempty"`
-	End      string     `json:"end,omitempty"`
-	Ongoing  bool       `json:"ongoing,omitempty"`
-	Finished bool       `json:"finished,omitempty"`
-	Format   string     `json:"format,omitempty"`
-	Players  []PlayerID `json:"players,omitempty"`
+type Tournament struct {
+	ID       TournamentID `json:"id"`
+	Version  uint64       `json:"version"`
+	Name     string       `json:"name"`
+	Start    string       `json:"start,omitempty"`
+	End      string       `json:"end,omitempty"`
+	Ongoing  bool         `json:"ongoing,omitempty"`
+	Finished bool         `json:"finished,omitempty"`
+	Format   string       `json:"format,omitempty"`
+	Players  []PlayerID   `json:"players,omitempty"`
 	*event.ChangeRecorder
 }
 
-type SeasonID string
+type TournamentID string
 
 const (
 	ActionStart      = "start"
@@ -38,58 +38,41 @@ const (
 	ArgumentName     = "name"
 )
 
-func (s *Server) handleGETSeasons(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
-		Label: "Seasons",
-		Type:  "seasons",
+		Label: "Tournaments",
+		Type:  "tournaments",
 	}
 	link := hyper.Link{
 		Rel:  "self",
 		Href: resolve(".").String(),
 	}
-	s.seasons, err = s.p.FindAllSeasons()
+	s.tournaments, err = s.p.FindAllTournaments()
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	for _, seas := range s.seasons {
-		// seas.Players, err = s.db.FindPlayersInSeason(seas.ID)
-		// if err != nil {
-		// 	handleError(w, http.StatusInternalServerError, err)
-		// 	return
-		// }
-		item := seas.MakeUndetailedHyperItem(resolve)
-		plrs, err := s.MakeSeasonPlayersHyperItem(seas, resolve)
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
-		item.AddItem(plrs)
+	for _, trn := range s.tournaments {
+		item := trn.MakeUndetailedHyperItem(resolve)
 		res.AddItem(item)
 	}
 	res.AddLink(link)
 	hyper.Write(w, 200, res)
 }
 
-func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	sID := SeasonID(r.Context().Value(":id").(string))
+	tID := TournamentID(r.Context().Value(":id").(string))
 
-	// seas, err := s.db.FindSeasonByID(sID)
-	seas, err := LoadSeason(s.es, sID)
+	trn, err := LoadTournament(s.es, tID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	// seas.Players, err = s.db.FindPlayersInSeason(seas.ID)
-	// if err != nil {
-	// 	handleError(w, http.StatusInternalServerError, err)
-	// 	return
-	// }
 
-	res := seas.MakeDetailedHyperItem(resolve)
-	plrs, err := s.MakeSeasonPlayersHyperItem(*seas, resolve)
+	res := trn.MakeDetailedHyperItem(resolve)
+	plrs, err := s.MakeTournamentPlayersHyperItem(*trn, resolve)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -98,24 +81,24 @@ func (s *Server) handleGETSeason(w http.ResponseWriter, r *http.Request) {
 	hyper.Write(w, http.StatusOK, res)
 }
 
-func (s *Server) handlePOSTSeason(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
-	sID := SeasonID(r.Context().Value(":id").(string))
-	// seas, err := s.db.FindSeasonByID(sID)
-	seas, err := LoadSeason(s.es, sID)
+	tID := TournamentID(r.Context().Value(":id").(string))
+
+	trn, err := LoadTournament(s.es, tID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	switch cmd.Action {
 	case ActionStart:
-		err = seas.Begin()
+		err = trn.Begin()
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 	case ActionEnd:
-		err = seas.Finish()
+		err = trn.Finish()
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
@@ -128,7 +111,7 @@ func (s *Server) handlePOSTSeason(w http.ResponseWriter, r *http.Request) {
 		return
 	case ActionChangeName:
 		newName := cmd.Arguments.String(ArgumentName)
-		err = seas.ChangeName(newName)
+		err = trn.ChangeName(newName)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
@@ -138,7 +121,7 @@ func (s *Server) handlePOSTSeason(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = seas.Save(s.es, nil)
+	err = trn.Save(s.es, nil)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -146,17 +129,17 @@ func (s *Server) handlePOSTSeason(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	switch cmd.Action {
 	case ActionCreate:
-		seas := NewSeason()
-		err = seas.Create(SeasonID(uuid.MakeV4()))
+		trn := NewTournament()
+		err = trn.Create(TournamentID(uuid.MakeV4()))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-		err = seas.Save(s.es, nil)
+		err = trn.Save(s.es, nil)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
@@ -168,12 +151,12 @@ func (s *Server) handlePOSTSeasons(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) MakeSeasonPlayersHyperItem(seas Season, resolve hyper.ResolverFunc) (hyper.Item, error) {
+func (s *Server) MakeTournamentPlayersHyperItem(tourn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
 		Type:  "players",
 	}
-	for _, pID := range seas.Players {
+	for _, pID := range tourn.Players {
 		plr, err := s.p.FindPlayerByID(pID)
 		if err != nil {
 			return plrs, err
@@ -200,77 +183,77 @@ func (s *Server) MakeSeasonPlayersHyperItem(seas Season, resolve hyper.ResolverF
 	return plrs, nil
 }
 
-func (seas *Season) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
-		Label: seas.Name,
-		Type:  "season",
-		ID:    string(seas.ID),
+		Label: trn.Name,
+		Type:  "tournament",
+		ID:    string(trn.ID),
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
 				Name:  "name",
-				Value: seas.Name,
+				Value: trn.Name,
 			},
 		},
 	}
-	sLink := hyper.Link{
+	tLink := hyper.Link{
 		Rel:  "details",
-		Href: resolve("./%s", seas.ID).String(),
+		Href: resolve("./%s", trn.ID).String(),
 	}
-	item.AddLink(sLink)
+	item.AddLink(tLink)
 	return item
 }
 
-func (seas *Season) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
-		Label: seas.Name,
-		Type:  "season",
+		Label: trn.Name,
+		Type:  "tournament",
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
 				Name:  "name",
-				Value: seas.Name,
+				Value: trn.Name,
 			},
 			{
 				Label: "ID",
 				Name:  "id",
-				Value: seas.ID,
+				Value: trn.ID,
 			},
 			{
 				Label: "Version",
 				Name:  "version",
-				Value: seas.Version,
+				Value: trn.Version,
 			},
 			{
 				Label: "Start",
 				Name:  "start",
-				Value: seas.Start,
+				Value: trn.Start,
 			},
 			{
 				Label: "End",
 				Name:  "end",
-				Value: seas.End,
+				Value: trn.End,
 			},
 			{
 				Label: "Ongoing",
 				Name:  "ongoing",
-				Value: seas.Ongoing,
+				Value: trn.Ongoing,
 			},
 			{
 				Label: "Finished",
 				Name:  "finished",
-				Value: seas.Finished,
+				Value: trn.Finished,
 			},
 			{
 				Label: "Format",
 				Name:  "format",
-				Value: seas.Format,
+				Value: trn.Format,
 			},
 		},
 	}
 	link := hyper.Link{
 		Rel:  "self",
-		Href: resolve("./%s", seas.ID).String(),
+		Href: resolve("./%s", trn.ID).String(),
 	}
 	item.AddLink(link)
 	return item

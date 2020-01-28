@@ -43,9 +43,8 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
-	plr := Player{}
 	pID := PlayerID(r.Context().Value(":id").(string))
-	plr, err = s.p.FindPlayerByID(pID)
+	plr, err := LoadPlayer(s.es, pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
@@ -58,7 +57,7 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
-	// plr, err := s.db.FindPlayerByID(pID)
+
 	plr, err := LoadPlayer(s.es, pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)

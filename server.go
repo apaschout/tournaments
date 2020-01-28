@@ -12,23 +12,27 @@ import (
 var err error
 
 type Server struct {
-	router  *mux.Router
-	p       Projection
-	es      *event.Store
-	seasons []Season
-	players []Player
-	decks   []Deck
+	router      *mux.Router
+	p           Projection
+	es          *event.Store
+	tournaments []Tournament
+	players     []Player
+	decks       []Deck
 }
 
 func NewServer(p Projection, es *event.Store) *Server {
-	return &Server{
+	s := Server{
 		router: mux.New(),
 		p:      p,
 		es:     es,
 	}
+	s.init()
+	return &s
 }
 
-func (s *Server) Init() {
+func (s *Server) init() {
+	sub := s.es.SubscribeToStreamFrom(event.All, s.p.GetVersion())
+	sub.On(s.p.On)
 
 	chain := mux.NewChain(
 		mux.CORS(mux.AccessControlDefaults),
@@ -36,10 +40,10 @@ func (s *Server) Init() {
 	)
 	s.router.Route("/api/").GET(chain.ThenFunc(s.handleGETAPI))
 
-	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETSeasons))
-	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETSeason))
-	s.router.Route("/api/seasons/:id").POST(chain.ThenFunc(s.handlePOSTSeason))
-	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTSeasons))
+	s.router.Route("/api/seasons/").GET(chain.ThenFunc(s.handleGETTournaments))
+	s.router.Route("/api/seasons/:id").GET(chain.ThenFunc(s.handleGETTournament))
+	s.router.Route("/api/seasons/:id").POST(chain.ThenFunc(s.handlePOSTTournament))
+	s.router.Route("/api/seasons/").POST(chain.ThenFunc(s.handlePOSTTournaments))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
@@ -66,7 +70,7 @@ func (s *Server) handleGETAPI(w http.ResponseWriter, r *http.Request) {
 			Href: resolve(".").String(),
 		},
 		{
-			Rel:  "seasons",
+			Rel:  "tournaments",
 			Href: resolve("./seasons/").String(),
 		},
 		{

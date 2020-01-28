@@ -1,15 +1,19 @@
 package tournaments
 
+import "github.com/cognicraft/event"
+
 type Projection interface {
-	SeasonRepository
+	TournamentRepository
 	PlayerRepository
 	DeckRepository
+	On(rec event.Record)
+	GetVersion() uint64
 }
 
-type SeasonRepository interface {
-	FindAllSeasons() ([]Season, error)
-	FindSeasonByID(id SeasonID) (Season, error)
-	IsSeasonNameAvailable(name string) (bool, error)
+type TournamentRepository interface {
+	FindAllTournaments() ([]Tournament, error)
+	FindTournamentByID(id TournamentID) (Tournament, error)
+	IsTournamentNameAvailable(name string) (bool, error)
 }
 
 type PlayerRepository interface {

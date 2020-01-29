@@ -255,10 +255,12 @@ func (s *Store) GetVersion() uint64 {
 func (s *Store) On(rec event.Record) {
 	codec, err := Codec()
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	e, err := codec.Decode(rec)
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	switch e := e.(type) {
@@ -293,6 +295,16 @@ func (s *Store) On(rec event.Record) {
 			log.Println("Projection: TournamentPlayerRegistered")
 			return nil
 		})
+	case TournamentPlayerDropped:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "DELETE FROM registered_players WHERE tournament = ? AND player = ?;"
+			_, err = t.Exec(query, e.Tournament, e.Player)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentPlayerDropped")
+			return nil
+		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
 			query := "INSERT INTO players (id) VALUES (?);"
@@ -315,8 +327,8 @@ func (s *Store) On(rec event.Record) {
 		})
 	}
 	err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-		query := `UPDATE metadata SET value = value + 1 WHERE key = "version"`
-		_, err := t.Exec(query)
+		query := `INSERT OR REPLACE INTO metadata (key, value) VALUES ("version", ?)`
+		_, err := t.Exec(query, s.GetVersion()+1)
 		if err != nil {
 			return err
 		}

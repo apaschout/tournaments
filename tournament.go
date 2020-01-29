@@ -13,11 +13,12 @@ type Tournament struct {
 	ID       TournamentID `json:"id"`
 	Version  uint64       `json:"version"`
 	Name     string       `json:"name"`
+	Phase    Phase        `json:"phase"`
 	Start    string       `json:"start,omitempty"`
 	End      string       `json:"end,omitempty"`
 	Ongoing  bool         `json:"ongoing,omitempty"`
 	Finished bool         `json:"finished,omitempty"`
-	Format   string       `json:"format,omitempty"`
+	Format   Format       `json:"format,omitempty"`
 	Players  []PlayerID   `json:"players,omitempty"`
 	*event.ChangeRecorder
 }
@@ -25,17 +26,22 @@ type Tournament struct {
 type TournamentID string
 
 const (
-	ActionStart        = "start"
-	ActionEnd          = "end"
-	ActionAddPlayer    = "add-player"
-	ActionRemovePlayer = "remove-player"
-	ActionChangeName   = "change-name"
-	ActionCreate       = "create"
+	ActionStart          = "start"
+	ActionEnd            = "end"
+	ActionRegisterPlayer = "register-player"
+	ActionDropPlayer     = "drop-player"
+	ActionChangeName     = "change-name"
+	ActionCreate         = "create"
 )
 
 const (
-	ArgumentPlayerID = "pID"
+	ArgumentPlayerID = "pid"
 	ArgumentName     = "name"
+)
+
+const (
+	PhaseRegistration   = "registration"
+	PhaseInitialization = "initialization"
 )
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
@@ -103,21 +109,30 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-	case ActionAddPlayer:
+	case ActionRegisterPlayer:
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
 		ok, err := s.p.PlayerExists(pID)
 		if !ok {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-		err = trn.AddPlayer(pID)
+		err = trn.RegisterPlayer(pID)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-	case ActionRemovePlayer:
-		handleError(w, http.StatusNotImplemented, fmt.Errorf("Action not implemented yet"))
-		return
+	case ActionDropPlayer:
+		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		ok, err := s.p.PlayerExists(pID)
+		if !ok {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
+		err = trn.DropPlayer(pID)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err)
+			return
+		}
 	case ActionChangeName:
 		newName := cmd.Arguments.String(ArgumentName)
 		ok, err := s.p.IsTournamentNameAvailable(newName)
@@ -165,12 +180,12 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) MakeTournamentPlayersHyperItem(tourn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
+func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
 		Type:  "players",
 	}
-	for _, pID := range tourn.Players {
+	for _, pID := range trn.Players {
 		plr, err := s.p.FindPlayerByID(pID)
 		if err != nil {
 			return plrs, err

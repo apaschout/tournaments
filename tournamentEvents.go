@@ -42,6 +42,27 @@ type TournamentPlayerRegistered struct {
 	Player     PlayerID     `json:"player"`
 }
 
+type TournamentPlayerDropped struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Player     PlayerID     `json:"player"`
+}
+
+type TournamentPhaseChanged struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Phase      Phase        `json:"phase"`
+}
+
+type TournamentFormatChanged struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Format     Format       `json:"format"`
+}
+
 func NewTournament() *Tournament {
 	return &Tournament{
 		ChangeRecorder: event.NewChangeRecorder(),
@@ -82,7 +103,45 @@ func (trn *Tournament) ChangeName(name string) error {
 	return nil
 }
 
-func (trn *Tournament) AddPlayer(pID PlayerID) error {
+func (trn *Tournament) ChangePhase(p Phase) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if p == "" {
+		return fmt.Errorf("Phase not specified")
+	}
+	if trn.Phase == p {
+		return nil
+	}
+	trn.Apply(TournamentPhaseChanged{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Phase:      p,
+	})
+	return nil
+}
+
+func (trn *Tournament) ChangeFormat(f Format) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if f == nil {
+		return fmt.Errorf("Format not specified")
+	}
+	if trn.Format == f {
+		return nil
+	}
+	trn.Apply(TournamentFormatChanged{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Format:     f,
+	})
+	return nil
+}
+
+func (trn *Tournament) RegisterPlayer(pID PlayerID) error {
 	if trn.ID == "" {
 		return fmt.Errorf("Tournament does not exist")
 	}
@@ -92,7 +151,29 @@ func (trn *Tournament) AddPlayer(pID PlayerID) error {
 	if trn.isPlayerRegistered(pID) {
 		return fmt.Errorf("Player already registered")
 	}
+	if trn.Phase != PhaseRegistration {
+		return fmt.Errorf("Not in registration phase")
+	}
 	trn.Apply(TournamentPlayerRegistered{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Player:     pID,
+	})
+	return nil
+}
+
+func (trn *Tournament) DropPlayer(pID PlayerID) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if pID == "" {
+		return fmt.Errorf("No Player specified")
+	}
+	if !trn.isPlayerRegistered(pID) {
+		return fmt.Errorf("Player is not registered")
+	}
+	trn.Apply(TournamentPlayerDropped{
 		ID:         uuid.MakeV4(),
 		OccurredOn: time.Now().UTC(),
 		Tournament: trn.ID,
@@ -146,10 +227,17 @@ func (trn *Tournament) Mutate(e event.Event) {
 	switch e := e.(type) {
 	case TournamentCreated:
 		trn.ID = e.Tournament
+		trn.Phase = PhaseInitialization
 	case TournamentNameChanged:
 		trn.Name = e.Name
+	case TournamentPhaseChanged:
+		trn.Phase = e.Phase
+	case TournamentFormatChanged:
+		trn.Format = e.Format
 	case TournamentPlayerRegistered:
 		trn.Players = append(trn.Players, e.Player)
+	case TournamentPlayerDropped:
+		trn.removePlayer(e.Player)
 	case TournamentStarted:
 		trn.Start = e.Start.String()
 	case TournamentEnded:
@@ -206,4 +294,12 @@ func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
 		}
 	}
 	return false
+}
+
+func (trn *Tournament) removePlayer(pID PlayerID) {
+	for i, v := range trn.Players {
+		if v == pID {
+			trn.Players = append(trn.Players[:i], trn.Players[i+1:]...)
+		}
+	}
 }

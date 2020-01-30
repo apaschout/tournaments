@@ -60,7 +60,7 @@ type TournamentFormatChanged struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
 	Tournament TournamentID `json:"tournament"`
-	Format     Format       `json:"format"`
+	Format     string       `json:"format"`
 }
 
 func NewTournament() *Tournament {
@@ -90,6 +90,9 @@ func (trn *Tournament) ChangeName(name string) error {
 	}
 	if name == "" {
 		return fmt.Errorf("A Tournament's name may not be empty")
+	}
+	if trn.Phase != PhaseRegistration {
+		return fmt.Errorf("Changing Name is not allowed in this Phase")
 	}
 	if trn.Name == name {
 		return nil
@@ -122,12 +125,15 @@ func (trn *Tournament) ChangePhase(p Phase) error {
 	return nil
 }
 
-func (trn *Tournament) ChangeFormat(f Format) error {
+func (trn *Tournament) ChangeFormat(f string) error {
 	if trn.ID == "" {
 		return fmt.Errorf("Tournament does not exist")
 	}
-	if f == nil {
+	if f == "" {
 		return fmt.Errorf("Format not specified")
+	}
+	if trn.Phase != PhaseInitialization {
+		return fmt.Errorf("Changing Format not allowed in this Phase")
 	}
 	if trn.Format == f {
 		return nil

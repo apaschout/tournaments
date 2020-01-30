@@ -12,7 +12,7 @@ import (
 const (
 	storeDSN  = "test.db"
 	eventsDSN = "events.db"
-	port      = ":8080"
+	port      = ":5000"
 )
 
 func main() {

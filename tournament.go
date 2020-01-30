@@ -18,7 +18,7 @@ type Tournament struct {
 	End      string       `json:"end,omitempty"`
 	Ongoing  bool         `json:"ongoing,omitempty"`
 	Finished bool         `json:"finished,omitempty"`
-	Format   Format       `json:"format,omitempty"`
+	Format   string       `json:"format,omitempty"`
 	Players  []PlayerID   `json:"players,omitempty"`
 	*event.ChangeRecorder
 }
@@ -26,22 +26,18 @@ type Tournament struct {
 type TournamentID string
 
 const (
-	ActionStart          = "start"
-	ActionEnd            = "end"
 	ActionRegisterPlayer = "register-player"
 	ActionDropPlayer     = "drop-player"
 	ActionChangeName     = "change-name"
 	ActionCreate         = "create"
+	ActionChangeFormat   = "change-format"
+	ActionEndPhase       = "end-phase"
 )
 
 const (
 	ArgumentPlayerID = "pid"
 	ArgumentName     = "name"
-)
-
-const (
-	PhaseRegistration   = "registration"
-	PhaseInitialization = "initialization"
+	ArgumentFormat   = "format"
 )
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
@@ -97,56 +93,49 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch cmd.Action {
-	case ActionStart:
-		err = trn.Begin()
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
-	case ActionEnd:
-		err = trn.Finish()
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
 	case ActionRegisterPlayer:
+		var ok bool
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
-		ok, err := s.p.PlayerExists(pID)
+		ok, err = s.p.PlayerExists(pID)
 		if !ok {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 		err = trn.RegisterPlayer(pID)
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
 	case ActionDropPlayer:
+		var ok bool
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
-		ok, err := s.p.PlayerExists(pID)
+		ok, err = s.p.PlayerExists(pID)
 		if !ok {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 		err = trn.DropPlayer(pID)
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
 	case ActionChangeName:
+		var ok bool
 		newName := cmd.Arguments.String(ArgumentName)
-		ok, err := s.p.IsTournamentNameAvailable(newName)
+		ok, err = s.p.IsTournamentNameAvailable(newName)
 		if !ok {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 		err = trn.ChangeName(newName)
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
+	case ActionChangeFormat:
+		f := cmd.Arguments.String(ArgumentFormat)
+		err = trn.ChangeFormat(f)
+	case ActionEndPhase:
+		switch trn.Format {
+		case "pauper-cube":
+			err = trn.handleEndPhasePauperCube()
+		case "":
+			err = fmt.Errorf("Can't proceed to next Phase: Format not set")
+		default:
+			err = fmt.Errorf("Format not recognized: %s", trn.Format)
 		}
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
+	}
+	if err != nil {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -156,6 +145,41 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (trn *Tournament) handleEndPhasePauperCube() error {
+	switch trn.Phase {
+	case PhaseInitialization:
+		if trn.Name == "" {
+			return fmt.Errorf("Can't proceed to next Phase: Name not set")
+		}
+		err = trn.ChangePhase(PhaseRegistration)
+	case PhaseRegistration:
+		if len(trn.Players) == 0 {
+			return fmt.Errorf("Can't proceed to next Phase: No Players registered")
+		}
+		err = trn.ChangePhase(PhaseDraft)
+		if err != nil {
+			return err
+		}
+		err = trn.Begin()
+	case PhaseDraft:
+		err = trn.ChangePhase(PhaseRounds)
+	case PhaseRounds:
+		err = trn.ChangePhase(PhaseEnded)
+		if err != nil {
+			return err
+		}
+		err = trn.Finish()
+	case PhaseEnded:
+		err = fmt.Errorf("Tournament has already ended")
+	default:
+		err = fmt.Errorf("Phase not recognized")
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
@@ -252,6 +276,11 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 				Label: "Version",
 				Name:  "version",
 				Value: trn.Version,
+			},
+			{
+				Label: "Phase",
+				Name:  "phase",
+				Value: trn.Phase,
 			},
 			{
 				Label: "Start",

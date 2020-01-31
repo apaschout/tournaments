@@ -192,13 +192,17 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
-		err = trn.Save(s.es, nil)
+		err = trn.ChangeName(string(trn.ID))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
+		err = trn.Save(s.es, nil)
 	default:
-		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"))
+		err = fmt.Errorf("Action not recognized")
+	}
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

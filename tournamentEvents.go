@@ -91,7 +91,7 @@ func (trn *Tournament) ChangeName(name string) error {
 	if name == "" {
 		return fmt.Errorf("A Tournament's name may not be empty")
 	}
-	if trn.Phase != PhaseRegistration {
+	if trn.Phase != PhaseInitialization {
 		return fmt.Errorf("Changing Name is not allowed in this Phase")
 	}
 	if trn.Name == name {

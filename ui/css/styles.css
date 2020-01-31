@@ -1,0 +1,18 @@
+body{
+    color: white;
+    background-color: #080808;
+}
+
+.heading {
+    text-align: center;
+}
+
+.table {
+
+    color: #000;
+    margin: auto;
+    margin-top: 5%;
+    background-color: lightslategrey;
+    width: 60%;
+    height: 25em;
+}

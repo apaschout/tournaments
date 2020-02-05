@@ -265,16 +265,12 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 	item := hyper.Item{
 		Label: trn.Name,
 		Type:  "tournament",
+		ID:    string(trn.ID),
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
 				Name:  "name",
 				Value: trn.Name,
-			},
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: trn.ID,
 			},
 			{
 				Label: "Version",

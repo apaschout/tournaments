@@ -136,16 +136,12 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 	item := hyper.Item{
 		Label: plr.Name,
 		Type:  "player",
+		ID:    string(plr.ID),
 		Properties: []hyper.Property{
 			{
 				Label: "Name",
 				Name:  "name",
 				Value: plr.Name,
-			},
-			{
-				Label: "ID",
-				Name:  "id",
-				Value: plr.ID,
 			},
 		},
 	}

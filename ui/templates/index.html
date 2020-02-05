@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" type="text/css" href="/css/w3.css">
+    <script src="/js/script.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <title>Tournaments</title>
 </head>
 
@@ -21,24 +23,26 @@
                     <div class="w3-bar-item w3-button w3-light-green" onclick='document.getElementById("form-create-tournament").submit();'>Create</div>
                 </form>
                 {{range .TournamentsData.Items}}
-                <form id="form-dropown-{{.ID}}" action="/tournament" method="GET">
+                <form id="form-dropown-{{.ID}}" class="form-dropdown-tournaments" action="/tournament" method="GET">
                     <a class="w3-bar-item w3-button"
                         onclick='document.getElementById("form-dropdown-{{.ID}}").submit();'
                         href="/tournament?id={{.ID}}">{{.Label}}</a>
                 </form>
                 {{end}}
+                <a class="w3-bar-item w3-button w3-pale-yellow" href="/tournaments">More...</a>
             </div>
         </div>
         <div class="w3-dropdown-hover">
             <button class="w3-button">Players</button>
             <div class="w3-dropdown-content w3-bar-block w3-card-4">
                 {{range .PlayersData.Items}}
-                <form id="form-dropown-{{.ID}}" action="/player" method="GET">
+                <form id="form-dropown-{{.ID}}" class="form-dropdown-players" action="/player" method="GET">
                     <a class="w3-bar-item w3-button"
                         onclick='document.getElementById("form-dropdown-{{.ID}}").submit();'
                         href="/player?id={{.ID}}">{{.Label}}</a>
                 </form>
                 {{end}}
+                <a class="w3-bar-item w3-button w3-pale-yellow" href="/players">More...</a>
             </div>
         </div>
         <a href="" class="w3-bar-item w3-button">Decks</a>

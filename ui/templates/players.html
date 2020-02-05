@@ -9,7 +9,7 @@
     <link rel="stylesheet" type="text/css" href="/css/w3.css">
     <script src="/js/script.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-    <title>Tournaments</title>
+    <title>Players</title>
 </head>
 
 <body>
@@ -48,8 +48,8 @@
         <a href="" class="w3-bar-item w3-button">Decks</a>
     </div>
     <ul class="w3-ul w3-card w3-hoverable w3-dark-gray w3-margin-top" style="width: 50%;margin:auto;">
-        {{range .Data.Properties}}
-        <li class="w3-hover-gray">{{.Label}}: {{.Value}}</li>
+        {{range .PlayersData.Items}}
+        <li class="w3-hover-gray" onclick='window.location.href="/player?id={{.ID}}"' style="cursor:pointer">{{.Label}}</li>
         {{end}}
     </ul>
 </body>

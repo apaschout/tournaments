@@ -141,7 +141,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		err = trn.ChangeFormat(f)
 	case ActionEndPhase:
 		switch trn.Format {
-		case "pauper-cube":
+		case "cube":
 			err = trn.handleEndPhasePauperCube()
 		case "":
 			err = fmt.Errorf("Can't proceed to next Phase: Format not set")
@@ -337,6 +337,39 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 		Rel:  "self",
 		Href: resolve("./%s", trn.ID).String(),
 	}
+	actions := hyper.Actions{
+		{
+			Label:  "Change Name",
+			Rel:    ActionChangeName,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name:        ArgumentName,
+					Placeholder: "New Name...",
+				},
+			},
+		},
+		{
+			Label:  "Change Format",
+			Rel:    ActionChangeFormat,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name:        ArgumentFormat,
+					Placeholder: "New Format...",
+				},
+			},
+		},
+		{
+			Label:  "End Phase",
+			Rel:    ActionEndPhase,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+		},
+	}
+	item.AddActions(actions)
 	item.AddLink(link)
 	return item
 }

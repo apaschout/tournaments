@@ -14,45 +14,64 @@
 
 <body>
     <h1 class="heading">Tournaments/{{.ID}}</h1>
-    <div class="w3-bar w3-dark-gray w3-center" style="width:90%;margin:auto;">
+    <div class="w3-bar w3-dark-gray w3-center">
         <a href="/api/tournaments/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Tournaments</a>
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
+    {{range .Actions}}
+    {{if ne .Rel "end-phase"}}
+    <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display = "block"'>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        {{.Label}}
+    </div>
+    <div id="{{.Rel}}-modal" class="w3-modal">
+        <div class="w3-modal-content">
+            <form class="w3-container w3-dark-gray" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
+                    class="w3-button w3-display-topright">&times;</span>
+                <h2 class="w3-center">{{.Label}}</h2>
+                <input type="hidden" name="@action" value="{{.Rel}}">
+                {{range .Parameters}}
+                <input class="w3-margin-bottom w3-center" style="width: 30%;margin:auto;" type="text" name="{{.Name}}"
+                    placeholder="{{.Placeholder}}">
+                {{end}}
+                <div class="neon-button w3-margin-bottom" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    OK
+                </div>
+            </form>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
     <ul class="w3-ul w3-card w3-dark-gray w3-margin-top" style="width: 50%;margin:auto;">
         {{range .Properties}}
-        <li class="w3-hover-Nray">{{.Label}}: {{.Value}}
-            {{if eq .Name "name"}}
-            <div class="neon-button" onclick='document.getElementById("name-modal").style.display = "block"'>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                EDIT
-            </div>
-            <div id="name-modal" class="w3-modal">
-                <div class="w3-modal-content">
-                    <form class="w3-container w3-dark-gray" id="form-changename" action="/api/tournaments/{{$.ID}}" method="POST">
-                        <span onclick='document.getElementById("name-modal").style.display="none"'
-                            class="w3-button w3-display-topright">&times;</span>
-                        <h2 class="w3-center">Change Name</h2>
-                        <input type="hidden" name="@action" value="change-name">
-                        <input class="w3-margin-bottom w3-center" style="width: 30%;margin:auto;" type="text" name="name" placeholder="New Name...">
-                        <div class="neon-button w3-margin-bottom" onclick='document.getElementById("form-changename").submit()'>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                            OK
-                        </div>
-                    </form>
-                </div>
-            </div>
-            {{else}}
-            {{end}}
-        </li>
+        <li>{{.Label}}: {{.Value}}</li>
         {{end}}
     </ul>
+    {{range .Actions}}
+    {{if eq .Rel "end-phase"}}
+    <div class="w3-margin-top" style="display:flex; align-items: center; justify-content: center;">
+        <div class="neon-button" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+            <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                {{.Label}}
+                <input type="hidden" name="@action" value="{{.Rel}}">
+            </form>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
 </body>
 
 </html>

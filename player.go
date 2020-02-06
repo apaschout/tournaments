@@ -2,7 +2,9 @@ package tournaments
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/cognicraft/event"
 	"github.com/cognicraft/hyper"
@@ -38,7 +40,14 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 		res.AddItem(item)
 	}
 	res.AddLink(link)
-	hyper.Write(w, http.StatusOK, res)
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		err = templ.ExecuteTemplate(w, "players.html", res)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		hyper.Write(w, http.StatusOK, res)
+	}
 }
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +60,14 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := plr.MakeDetailedHyperItem(resolve)
-	hyper.Write(w, http.StatusOK, res)
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		err = templ.ExecuteTemplate(w, "player.html", res)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		hyper.Write(w, http.StatusOK, res)
+	}
 }
 
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +102,11 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +128,11 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"))
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {

@@ -1,6 +1,7 @@
 package tournaments
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 
@@ -9,7 +10,10 @@ import (
 	"github.com/cognicraft/mux"
 )
 
-var err error
+var (
+	err   error
+	templ *template.Template
+)
 
 type Server struct {
 	router      *mux.Router
@@ -31,6 +35,11 @@ func NewServer(p Projection, es *event.Store) *Server {
 }
 
 func (s *Server) init() {
+	templ, err = templ.ParseGlob("assets/templates/*.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	sub := s.es.SubscribeToStreamFrom(event.All, s.p.GetVersion())
 	sub.On(s.p.On)
 
@@ -38,6 +47,8 @@ func (s *Server) init() {
 		mux.CORS(mux.AccessControlDefaults),
 		mux.GZIP,
 	)
+	s.router.Route("/").GET(chain.ThenFunc(s.handleGETIndex))
+
 	s.router.Route("/api/").GET(chain.ThenFunc(s.handleGETAPI))
 
 	s.router.Route("/api/tournaments/").GET(chain.ThenFunc(s.handleGETTournaments))
@@ -53,6 +64,9 @@ func (s *Server) init() {
 	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))
 	s.router.Route("/api/decks/:id").GET(chain.ThenFunc(s.handleGetDeck))
 	s.router.Route("/api/decks/").POST(chain.ThenFunc(s.handlePOSTDecks))
+
+	s.router.Route("/js/:file").GET(http.StripPrefix("/js/", http.FileServer(http.Dir("./assets/js"))))
+	s.router.Route("/css/:file").GET(http.StripPrefix("/css/", http.FileServer(http.Dir("./assets/css"))))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +94,10 @@ func (s *Server) handleGETAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	res.AddLinks(links)
 	hyper.Write(w, http.StatusOK, res)
+}
+
+func (s *Server) handleGETIndex(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func handleError(w http.ResponseWriter, status int, err error) {

@@ -80,7 +80,7 @@ func (s *Store) FindTournamentByID(id TournamentID) (Tournament, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Ongoing, &result.Finished, &result.Format)
+		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Format)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Tournament{}, err
@@ -273,6 +273,17 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: TournamentCreated")
+			return nil
+		})
+	case TournamentDeleted:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "DELETE FROM tournaments WHERE id = ?;"
+			_, err = t.Exec(query, e.Tournament)
+			if err != nil {
+				log.Printf("%v", err)
+				return err
+			}
+			log.Println("Projection: TournamentDeleted")
 			return nil
 		})
 	case TournamentNameChanged:

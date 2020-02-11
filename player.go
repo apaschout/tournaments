@@ -21,6 +21,7 @@ type Player struct {
 type PlayerID string
 
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Players",
@@ -32,7 +33,7 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 	s.players, err = s.p.FindAllPlayers()
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	for _, plr := range s.players {
@@ -51,11 +52,12 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
 	plr, err := LoadPlayer(s.es, pID)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 
@@ -71,12 +73,13 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	cmd := hyper.ExtractCommand(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
 
 	plr, err := LoadPlayer(s.es, pID)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	switch cmd.Action {
@@ -84,22 +87,22 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 		newName := cmd.Arguments.String(ArgumentName)
 		ok, err := s.p.IsPlayerNameAvailable(newName)
 		if !ok {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 		err = plr.ChangeName(newName)
 		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	err = plr.Save(s.es, nil)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	if strings.Contains(r.Header.Get("Accept"), "text/html") {
@@ -110,22 +113,23 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	cmd := hyper.ExtractCommand(r)
 	switch cmd.Action {
 	case ActionCreate:
 		plr := NewPlayer()
 		err = plr.Create(PlayerID(uuid.MakeV4()))
 		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 		err = plr.Save(s.es, nil)
 		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 	default:
-		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"))
+		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"), isHtmlReq)
 		return
 	}
 	if strings.Contains(r.Header.Get("Accept"), "text/html") {

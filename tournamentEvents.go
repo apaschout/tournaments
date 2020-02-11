@@ -14,6 +14,12 @@ type TournamentCreated struct {
 	Tournament TournamentID `json:"tournament"`
 }
 
+type TournamentDeleted struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+}
+
 type TournamentNameChanged struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
@@ -84,6 +90,18 @@ func (trn *Tournament) Create(id TournamentID) error {
 	return nil
 }
 
+func (trn *Tournament) Delete() error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	trn.Apply(TournamentDeleted{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+	})
+	return nil
+}
+
 func (trn *Tournament) ChangeName(name string) error {
 	if trn.ID == "" {
 		return fmt.Errorf("Tournament does not exist")
@@ -133,7 +151,7 @@ func (trn *Tournament) ChangeFormat(f string) error {
 		return fmt.Errorf("Format not specified")
 	}
 	if trn.Phase != PhaseInitialization {
-		return fmt.Errorf("Changing Format not allowed in this Phase")
+		return fmt.Errorf("Changing Format is not allowed in this Phase")
 	}
 	if trn.Format == f {
 		return nil
@@ -234,6 +252,8 @@ func (trn *Tournament) Mutate(e event.Event) {
 	case TournamentCreated:
 		trn.ID = e.Tournament
 		trn.Phase = PhaseInitialization
+	case TournamentDeleted:
+		trn = nil
 	case TournamentNameChanged:
 		trn.Name = e.Name
 	case TournamentPhaseChanged:

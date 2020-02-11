@@ -12,22 +12,21 @@ import (
 )
 
 type Tournament struct {
-	ID       TournamentID `json:"id"`
-	Version  uint64       `json:"version"`
-	Name     string       `json:"name"`
-	Phase    Phase        `json:"phase"`
-	Start    string       `json:"start,omitempty"`
-	End      string       `json:"end,omitempty"`
-	Ongoing  bool         `json:"ongoing,omitempty"`
-	Finished bool         `json:"finished,omitempty"`
-	Format   string       `json:"format,omitempty"`
-	Players  []PlayerID   `json:"players,omitempty"`
+	ID      TournamentID `json:"id"`
+	Version uint64       `json:"version"`
+	Name    string       `json:"name"`
+	Phase   Phase        `json:"phase"`
+	Start   string       `json:"start,omitempty"`
+	End     string       `json:"end,omitempty"`
+	Format  string       `json:"format,omitempty"`
+	Players []PlayerID   `json:"players,omitempty"`
 	*event.ChangeRecorder
 }
 
 type TournamentID string
 
 const (
+	ActionDelete         = "delete"
 	ActionRegisterPlayer = "register-player"
 	ActionDropPlayer     = "drop-player"
 	ActionChangeName     = "change-name"
@@ -37,12 +36,14 @@ const (
 )
 
 const (
-	ArgumentPlayerID = "pid"
-	ArgumentName     = "name"
-	ArgumentFormat   = "format"
+	ArgumentTournamentID = "tid"
+	ArgumentPlayerID     = "pid"
+	ArgumentName         = "name"
+	ArgumentFormat       = "format"
 )
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Tournaments",
@@ -54,7 +55,7 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 	}
 	s.tournaments, err = s.p.FindAllTournaments()
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	for _, trn := range s.tournaments {
@@ -62,7 +63,7 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 		res.AddItem(item)
 	}
 	res.AddLink(link)
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+	if isHtmlReq {
 		err = templ.ExecuteTemplate(w, "tournaments.html", res)
 		if err != nil {
 			log.Println(err)
@@ -73,24 +74,26 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
 	trn, err := LoadTournament(s.es, tID)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 
 	res := trn.MakeDetailedHyperItem(resolve)
 	plrs, err := s.MakeTournamentPlayersHyperItem(*trn, resolve)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	res.AddItem(plrs)
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
-		err = templ.ExecuteTemplate(w, "tournament.html", res)
+	if isHtmlReq {
+		// err = templ.ExecuteTemplate(w, "tournament.html", res)
+		err = trn.switchTemplates(w, res)
 		if err != nil {
 			log.Println(err)
 		}
@@ -100,12 +103,13 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	cmd := hyper.ExtractCommand(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
 	trn, err := LoadTournament(s.es, tID)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	switch cmd.Action {
@@ -114,7 +118,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
 		ok, err = s.p.PlayerExists(pID)
 		if !ok {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 		err = trn.RegisterPlayer(pID)
@@ -123,7 +127,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
 		ok, err = s.p.PlayerExists(pID)
 		if !ok {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 		err = trn.DropPlayer(pID)
@@ -132,7 +136,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		newName := cmd.Arguments.String(ArgumentName)
 		ok, err = s.p.IsTournamentNameAvailable(newName)
 		if !ok {
-			handleError(w, http.StatusInternalServerError, err)
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
 		err = trn.ChangeName(newName)
@@ -142,22 +146,24 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	case ActionEndPhase:
 		switch trn.Format {
 		case "cube":
-			err = trn.handleEndPhasePauperCube()
+			err = trn.handleEndPhaseCube()
 		case "":
 			err = fmt.Errorf("Can't proceed to next Phase: Format not set")
 		default:
 			err = fmt.Errorf("Format not recognized: %s", trn.Format)
 		}
+	case ActionDelete:
+		err = trn.Delete()
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	err = trn.Save(s.es, nil)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	if strings.Contains(r.Header.Get("Accept"), "text/html") {
@@ -167,7 +173,38 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (trn *Tournament) handleEndPhasePauperCube() error {
+func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+	cmd := hyper.ExtractCommand(r)
+	switch cmd.Action {
+	case ActionCreate:
+		trn := NewTournament()
+		err = trn.Create(TournamentID(uuid.MakeV4()))
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+			return
+		}
+		err = trn.ChangeName(string(trn.ID))
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+			return
+		}
+		err = trn.Save(s.es, nil)
+	default:
+		err = fmt.Errorf("Action not recognized")
+	}
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+		return
+	}
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (trn *Tournament) handleEndPhaseCube() error {
 	switch trn.Phase {
 	case PhaseInitialization:
 		if trn.Name == "" {
@@ -202,34 +239,23 @@ func (trn *Tournament) handleEndPhasePauperCube() error {
 	return nil
 }
 
-func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
-	cmd := hyper.ExtractCommand(r)
-	switch cmd.Action {
-	case ActionCreate:
-		trn := NewTournament()
-		err = trn.Create(TournamentID(uuid.MakeV4()))
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
-		err = trn.ChangeName(string(trn.ID))
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err)
-			return
-		}
-		err = trn.Save(s.es, nil)
-	default:
-		err = fmt.Errorf("Action not recognized")
+func (trn *Tournament) switchTemplates(w http.ResponseWriter, item hyper.Item) error {
+	switch trn.Phase {
+	case PhaseInitialization:
+		err = templ.ExecuteTemplate(w, "tournamentInitialization.html", item)
+	case PhaseRegistration:
+		err = templ.ExecuteTemplate(w, "tournamentRegistration.html", item)
+	case PhaseDraft:
+		err = templ.ExecuteTemplate(w, "tournamentDraft.html", item)
+	case PhaseRounds:
+		err = templ.ExecuteTemplate(w, "tournamentRounds.html", item)
+	case PhaseEnded:
+		err = templ.ExecuteTemplate(w, "tournamentEnded.html", item)
 	}
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
-		return
+		return err
 	}
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
-		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
-	} else {
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return nil
 }
 
 func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
@@ -315,16 +341,6 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 				Label: "End",
 				Name:  "end",
 				Value: trn.End,
-			},
-			{
-				Label: "Ongoing",
-				Name:  "ongoing",
-				Value: trn.Ongoing,
-			},
-			{
-				Label: "Finished",
-				Name:  "finished",
-				Value: trn.Finished,
 			},
 			{
 				Label: "Format",

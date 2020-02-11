@@ -8,6 +8,10 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.Register("tournament:deleted", TournamentDeleted{})
+	if err != nil {
+		return nil, err
+	}
 	err = c.Register("tournament:name-changed", TournamentNameChanged{})
 	if err != nil {
 		return nil, err

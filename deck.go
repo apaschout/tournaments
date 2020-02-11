@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/uuid"
@@ -18,6 +19,7 @@ type Deck struct {
 type DeckID string
 
 func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Decks",
@@ -31,7 +33,7 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 	}
 	s.decks, err = s.p.FindAllDecks()
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	for _, dck := range s.decks {
@@ -43,12 +45,13 @@ func (s *Server) handleGETDecks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetDeck(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	dID := DeckID(r.Context().Value(":id").(string))
 
 	dck, err := s.p.FindDeckByID(dID)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 
@@ -57,22 +60,23 @@ func (s *Server) handleGetDeck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
+	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 
 	dck := Deck{}
 	err = json.Unmarshal(b, &dck)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 
 	ok, err := s.p.IsDeckNameAvailable(dck.Name)
 	if !ok {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 	_, err = uuid.Parse(string(dck.ID))
@@ -82,7 +86,7 @@ func (s *Server) handlePOSTDecks(w http.ResponseWriter, r *http.Request) {
 	dck.ID = DeckID(uuid.MakeV4())
 	// err = s.db.SaveDeck(dck)
 	if err != nil {
-		handleError(w, http.StatusInternalServerError, err)
+		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
 

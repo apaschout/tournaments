@@ -100,7 +100,14 @@ func (s *Server) handleGETIndex(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func handleError(w http.ResponseWriter, status int, err error) {
+func handleError(w http.ResponseWriter, status int, err error, isHtmlReq bool) {
 	log.Println(err)
-	hyper.WriteError(w, http.StatusInternalServerError, err)
+	if isHtmlReq {
+		err = templ.ExecuteTemplate(w, "error.html", err)
+		if err != nil {
+			hyper.WriteError(w, status, err)
+		}
+	} else {
+		hyper.WriteError(w, status, err)
+	}
 }

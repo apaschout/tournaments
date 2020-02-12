@@ -384,6 +384,12 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 			Href:   resolve("./%s", trn.ID).String(),
 			Method: "POST",
 		},
+		{
+			Label:  "Delete",
+			Rel:    ActionDelete,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+		},
 	}
 	item.AddActions(actions)
 	item.AddLink(link)

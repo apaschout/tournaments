@@ -253,7 +253,7 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.ID = e.Tournament
 		trn.Phase = PhaseInitialization
 	case TournamentDeleted:
-		trn = nil
+		trn.ID = ""
 	case TournamentNameChanged:
 		trn.Name = e.Name
 	case TournamentPhaseChanged:

@@ -21,30 +21,94 @@
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
-    <div class="w3-container w3-dark-gray w3-margin-top">
+    <div class="w3-container w3-margin-top" style="width: 40%; margin: auto;background-color: #303030;">
+        <h2 class="w3-center">{{.Label}}</h2>
+        <div class="flex-container" style="width: 90%; margin:auto; justify-content: space-between;">
+            <p>Current Phase: {{range .Properties}}{{if eq .Name "phase"}}{{.Value}}{{end}}{{end}}</p>
+            {{range .Actions}}{{if eq .Rel "delete"}}
+            <div id="{{.Rel}}-modal" class="w3-modal">
+                <div class="w3-modal-content" style="width: 33%;">
+                    <form class="w3-container w3-dark-gray" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                        <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
+                            class="w3-button w3-display-topright">&times;</span>
+                        <h2 class="w3-center">Are you sure about that?</h2>
+                        <input type="hidden" name="@action" value="{{.Rel}}">
+                        <div class="flex-container w3-margin-bottom">
+                            <div class="neon-button-green w3-margin-left"
+                                onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                YES
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="neon-button-red w3-margin-left"
+                onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                DELETE
+            </div>
+            {{end}}{{end}}
+        </div>
         {{range .Actions}}
-        <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+        {{if eq .Rel "change-format"}}
+        <div class="w3-container w3-dark-gray w3-margin-top" style="width:90%; margin:auto;">
+            <h4 class="w3-center">{{.Label}}</h4>
+            <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}"
+                style="display: flex; align-items: center; justify-content: flex-start;">
+                <input type="hidden" name="@action" value="{{.Rel}}">
+                {{range .Parameters}}
+                <select class="w3-margin-top w3-margin-bottom" name="{{.Name}}" style="width: 40%;">
+                    <option value="cube">Cube</option>
+                </select>
+                {{end}}
+                <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    CHANGE
+                </div>
+            </form>
+        </div>
+        {{else if eq .Rel "change-name"}}
+        <div class="w3-container w3-dark-gray w3-margin-top" style="width:90%; margin:auto;">
+            <h4 class="w3-center">{{.Label}}</h4>
+            <form class="flex-container" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}"
+                style="justify-content: flex-start;">
+                <input type="hidden" name="@action" value="{{.Rel}}">
+                {{range .Parameters}}
+                <input class="w3-margin-top w3-margin-bottom" type="text" name="{{.Name}}"
+                    placeholder="{{.Placeholder}}" autocomplete="off"
+                    value='{{range $.Properties}}{{if eq .Name "name"}}{{.Value}}{{end}}{{end}}' style="width: 40%;">
+                {{end}}
+                <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    CHANGE
+                </div>
+            </form>
+        </div>
+        {{else if eq .Rel "end-phase"}}
+        <form class="flex-container w3-margin-top" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
             <input type="hidden" name="@action" value="{{.Rel}}">
-            {{if eq .Rel "change-format"}}
-            {{range .Parameters}}
-            <select name="{{.Name}}">
-                <option value="cube">Cube</option>
-            </select>
-            {{end}}
-            {{else}}
-            {{range .Parameters}}
-            <input type="text" name="{{.Name}}" placeholder="{{.Placeholder}}" autocomplete="off"
-                value='{{range $.Properties}}{{if eq .Name "name"}}{{.Value}}{{end}}{{end}}'>
-            {{end}}
-            {{end}}
-            <div class="neon-button" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+            <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
                 <span></span>
                 <span></span>
                 <span></span>
                 <span></span>
-                CHANGE
+                GO TO REGISTRATION
             </div>
         </form>
+        {{end}}
         {{end}}
     </div>
 </body>

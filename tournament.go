@@ -390,6 +390,17 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 			Href:   resolve("./%s", trn.ID).String(),
 			Method: "POST",
 		},
+		{
+			Label:  "Register Player",
+			Rel:    ActionRegisterPlayer,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name: ArgumentPlayerID,
+				},
+			},
+		},
 	}
 	item.AddActions(actions)
 	item.AddLink(link)

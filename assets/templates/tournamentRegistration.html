@@ -56,57 +56,37 @@
             </div>
             {{end}}{{end}}
         </div>
-        {{range .Actions}}{{if eq .Rel "change-format"}}
-        <div class="w3-container w3-dark-gray w3-margin-top" style="width:90%; margin:auto;">
+        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format: {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
+        {{range .Items}}
+        <div class="w3-container w3-dark-gray w3-padding" style="width:90%; margin:auto;">
             <h4 class="w3-center">{{.Label}}</h4>
-            <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}"
-                style="display: flex; align-items: center; justify-content: flex-start;">
-                <input type="hidden" name="@action" value="{{.Rel}}">
-                {{range .Parameters}}
-                <select class="w3-margin-top w3-margin-bottom" name="{{.Name}}" style="width: 40%;">
-                    <option value="cube">Cube</option>
-                </select>
-                {{end}}
-                <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    CHANGE
-                </div>
-            </form>
+            <ul class="w3-ul w3-card w3-hoverable w3-gray w3-margin-top">
+                <li class="w3-hoverable">Placeholder Player 1</li>
+                <li class="w3-hoverable">Placeholder Player 2</li>
+            </ul>
         </div>
-        {{else if eq .Rel "change-name"}}
-        <div class="w3-container w3-dark-gray w3-margin-top" style="width:90%; margin:auto;">
-            <h4 class="w3-center">{{.Label}}</h4>
-            <form class="flex-container" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}"
-                style="justify-content: flex-start;">
-                <input type="hidden" name="@action" value="{{.Rel}}">
-                {{range .Parameters}}
-                <input class="w3-margin-top w3-margin-bottom" type="text" name="{{.Name}}"
-                    placeholder="{{.Placeholder}}" autocomplete="off"
-                    value='{{range $.Properties}}{{if eq .Name "name"}}{{.Value}}{{end}}{{end}}' style="width: 40%;">
-                {{end}}
-                <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    CHANGE
-                </div>
-            </form>
-        </div>
-        {{else if eq .Rel "end-phase"}}
-        <form class="flex-container w3-margin-top" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
-            <input type="hidden" name="@action" value="{{.Rel}}">
-            <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                GO TO REGISTRATION
+        {{end}}
+        {{range .Actions}}{{if eq .Rel "register-player"}}
+        <div id="{{.Rel}}-modal" class="w3-modal">
+            <div class="w3-modal-content" style="width: 33%;">
+                <form class="w3-container w3-dark-gray w3-padding" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                    <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
+                        class="w3-button w3-display-topright">&times;</span>
+                    <h2 class="w3-center">{{.Label}}</h2>
+                    <input type="hidden" name="@action" value="{{.Rel}}">
+                    <ul class="w3-ul w3-card w3-hoverable w3-gray" id="ul-players">
+
+                    </ul>
+                </form>
             </div>
-        </form>
+        </div>
+        <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            ADD
+        </div>
         {{end}}{{end}}
     </div>
 </body>

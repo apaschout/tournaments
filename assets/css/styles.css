@@ -46,6 +46,10 @@ html {
     justify-content: center;
 }
 
+.selected {
+    background-color: #87CEEB;
+}
+
 .neon-button {
     display:block;
     width:max-content;
@@ -60,7 +64,7 @@ html {
 }
 
 .neon-button:hover {
-    color: #255784;
+    color: #031321;
     background: #87CEEB;
     box-shadow: 0 0 10px #87CEEB, 0 0 40px #87CEEB, 0 0 80px #87CEEB;
     transition-delay: 0.6s;
@@ -141,7 +145,7 @@ html {
 }
 
 .neon-button-red:hover {
-    color: #fff;
+    color: #031321;
     background: #e61919;
     box-shadow: 0 0 10px #e61919, 0 0 40px #e61919, 0 0 80px #e61919;
     transition-delay: 0.6s;
@@ -222,7 +226,7 @@ html {
 }
 
 .neon-button-green:hover {
-    color: #000;
+    color: #031321;
     background: #8bc34a;
     box-shadow: 0 0 10px #8bc34a, 0 0 40px #8bc34a, 0 0 80px #8bc34a;
     transition-delay: 0.6s;

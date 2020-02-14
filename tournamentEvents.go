@@ -2,6 +2,7 @@ package tournaments
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cognicraft/event"
@@ -87,6 +88,7 @@ func (trn *Tournament) Create(id TournamentID) error {
 		OccurredOn: time.Now().UTC(),
 		Tournament: id,
 	})
+	log.Printf("Event: Tournament %v: Created\n", trn.ID)
 	return nil
 }
 
@@ -99,6 +101,7 @@ func (trn *Tournament) Delete() error {
 		OccurredOn: time.Now().UTC(),
 		Tournament: trn.ID,
 	})
+	log.Printf("Event: Tournament %v: Deleted\n", trn.ID)
 	return nil
 }
 
@@ -121,6 +124,7 @@ func (trn *Tournament) ChangeName(name string) error {
 		Tournament: trn.ID,
 		Name:       name,
 	})
+	log.Printf("Event: Tournament %v: Name Changed To %s\n", trn.ID, name)
 	return nil
 }
 
@@ -140,6 +144,7 @@ func (trn *Tournament) ChangePhase(p Phase) error {
 		Tournament: trn.ID,
 		Phase:      p,
 	})
+	log.Printf("Event: Tournament %v: Phase Changed To %v\n", trn.ID, p)
 	return nil
 }
 
@@ -162,6 +167,7 @@ func (trn *Tournament) ChangeFormat(f string) error {
 		Tournament: trn.ID,
 		Format:     f,
 	})
+	log.Printf("Event: Tournament %v: Format Changed To %s\n", trn.ID, f)
 	return nil
 }
 
@@ -184,6 +190,7 @@ func (trn *Tournament) RegisterPlayer(pID PlayerID) error {
 		Tournament: trn.ID,
 		Player:     pID,
 	})
+	log.Printf("Event: Tournament %v: Player %v Registered\n", trn.ID, pID)
 	return nil
 }
 
@@ -203,6 +210,7 @@ func (trn *Tournament) DropPlayer(pID PlayerID) error {
 		Tournament: trn.ID,
 		Player:     pID,
 	})
+	log.Printf("Event: Tournament %v: Player %v Dropped\n", trn.ID, pID)
 	return nil
 }
 
@@ -219,6 +227,7 @@ func (trn *Tournament) Begin() error {
 		Tournament: trn.ID,
 		Start:      time.Now().UTC(),
 	})
+	log.Printf("Event: Tournament %v: Started\n", trn.ID)
 	return nil
 }
 
@@ -238,6 +247,7 @@ func (trn *Tournament) Finish() error {
 		Tournament: trn.ID,
 		End:        time.Now().UTC(),
 	})
+	log.Printf("Event: Tournament %v: Ended\n", trn.ID)
 	return nil
 }
 
@@ -251,6 +261,7 @@ func (trn *Tournament) Mutate(e event.Event) {
 	switch e := e.(type) {
 	case TournamentCreated:
 		trn.ID = e.Tournament
+		trn.Name = string(e.Tournament)
 		trn.Phase = PhaseInitialization
 	case TournamentDeleted:
 		trn.ID = ""

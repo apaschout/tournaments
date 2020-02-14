@@ -40,6 +40,11 @@ html {
     margin-right: auto;
 }
 
+#ul-players {
+    max-height: 12em;
+    overflow-y: scroll;
+}
+
 .flex-container {
     display: flex;
     align-items: center;
@@ -47,7 +52,17 @@ html {
 }
 
 .selected {
-    background-color: #87CEEB;
+    background-color: #8bc34a;
+}
+
+.selected:hover {
+    background-color: rgb(182, 240, 168);
+    cursor: pointer;
+}
+
+.hover-green:hover {
+    background-color: #f1f1f1;
+    cursor: pointer;
 }
 
 .neon-button {

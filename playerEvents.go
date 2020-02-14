@@ -71,6 +71,7 @@ func (plr *Player) Mutate(e event.Event) {
 	switch e := e.(type) {
 	case PlayerCreated:
 		plr.ID = e.Player
+		plr.Name = string(e.Player)
 	case PlayerNameChanged:
 		plr.Name = e.Name
 	}

@@ -266,8 +266,8 @@ func (s *Store) On(rec event.Record) {
 	switch e := e.(type) {
 	case TournamentCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO tournaments (id) VALUES (?);"
-			_, err = t.Exec(query, e.Tournament)
+			query := "INSERT INTO tournaments (id, name) VALUES (?, ?);"
+			_, err = t.Exec(query, e.Tournament, e.Tournament)
 			if err != nil {
 				log.Printf("%v", err)
 				return err
@@ -318,8 +318,8 @@ func (s *Store) On(rec event.Record) {
 		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id) VALUES (?);"
-			_, err = t.Exec(query, e.Player)
+			query := "INSERT INTO players (id, name) VALUES (?, ?);"
+			_, err = t.Exec(query, e.Player, e.Player)
 			if err != nil {
 				return err
 			}

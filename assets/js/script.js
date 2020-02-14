@@ -1,8 +1,3 @@
-document.addEventListener("DOMContentLoaded", e => {
-    parseDate()
-    loadPlayers()
-})
-
 function parseDate() {
     let lis = document.getElementsByTagName("li")
     let start = "Start: "
@@ -34,28 +29,50 @@ function loadPlayers() {
         if (xhttp.readyState == 4 && xhttp.status == 200) {
             var plrs = JSON.parse(xhttp.responseText)
             var ul = document.getElementById("ul-players")
-            // var form = document.getElementById("form-register-player")
+            var form = document.getElementById("form-register-player")
+            for (let i = 0; i < plrs.items.length; i++) {
+                ul.innerHTML += "<li class='hover-green' id='" + plrs.items[i].id + "'>" + plrs.items[i].label + "</li>"
+            }
             ul.addEventListener("click", e => {
                 if (e.target.tagName == "LI") {
-                    if (!e.target.classList.contains("selected")) {
-                        for (let i = 0; i < plrs.items.length; i++) {
-                            if (e.target.id == plrs.items[i].id) {
-                                ul.innerHTML += "<input id='hidden-input-selected' type='hidden' value='" + plrs.items[i].id + "'>"
+                    switch (e.target.classList.contains("selected")) {
+                        case true:
+                            deleteHiddenInput(form)
+                            toggleSelected(e.target.classList)
+                            break
+                        case false:
+                            if (document.getElementsByClassName("selected").length == 0) {
+                                createHiddenInput(plrs, e.target)
+                                toggleSelected(e.target.classList)
+                            } else {
+                                toggleSelected(document.getElementsByClassName("selected")[0].classList)
+                                deleteHiddenInput(form)
+                                createHiddenInput(plrs, e.target)
+                                toggleSelected(e.target.classList)
                             }
-                        }
-                        e.target.classList.add("selected")
-                    } else {
-                        var inp = document.getElementById("hidden-input-selected")
-                        e.target.parentNode.removeChild(inp)
-                        e.target.classList.remove("selected")
                     }
                 }
             })
-            for (let i = 0; i < plrs.items.length; i++) {
-                ul.innerHTML += "<li class='w3-hoverable' id='" + plrs.items[i].id + "'>" + plrs.items[i].label + "</li>"
-            }
         }
     }
     xhttp.open("GET", "/api/players/", true)
     xhttp.send()
+}
+
+function deleteHiddenInput(form) {
+    var inp = document.getElementById("hidden-input-selected")
+    form.removeChild(inp)
+}
+
+function createHiddenInput(plrs, elem) {
+    for (let i = 0; i < plrs.items.length; i++) {
+        if (elem.id == plrs.items[i].id) {
+            elem.parentNode.parentNode.insertAdjacentHTML("afterbegin", "<input id='hidden-input-selected' type='hidden' name='pid' value='" + plrs.items[i].id + "'>")
+        }
+    }
+}
+
+function toggleSelected(classList) {
+    classList.toggle("selected")
+    classList.toggle("hover-green")
 }

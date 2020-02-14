@@ -8,6 +8,11 @@
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
     <link rel="stylesheet" type="text/css" href="/css/w3.css">
     <script src="/js/script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", e => {
+            loadPlayers()
+        });
+    </script>
     <title>Tournaments</title>
 </head>
 
@@ -21,7 +26,7 @@
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
-    <div class="w3-container w3-margin-top" style="width: 40%; margin: auto;background-color: #303030;">
+    <div class="w3-container w3-margin-top w3-padding" style="width: 40%; margin: auto;background-color: #303030;">
         <h2 class="w3-center">{{.Label}}</h2>
         <div class="flex-container" style="width: 90%; margin:auto; justify-content: space-between;">
             <p>Current Phase: {{range .Properties}}{{if eq .Name "phase"}}{{.Value}}{{end}}{{end}}</p>
@@ -56,38 +61,91 @@
             </div>
             {{end}}{{end}}
         </div>
-        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format: {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
+        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format:
+            {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
         {{range .Items}}
         <div class="w3-container w3-dark-gray w3-padding" style="width:90%; margin:auto;">
             <h4 class="w3-center">{{.Label}}</h4>
             <ul class="w3-ul w3-card w3-hoverable w3-gray w3-margin-top">
-                <li class="w3-hoverable">Placeholder Player 1</li>
-                <li class="w3-hoverable">Placeholder Player 2</li>
+                {{$players := .Items}}{{$actions := $.Actions}}
+                {{range $player := $players}}
+                <li class="w3-hoverable">
+                    <div class="flex-container" style="justify-content: space-between;">
+                        <a href='{{range $player.Links}}{{if eq .Rel "details"}}{{.Href}}{{end}}{{end}}' target="_blank"
+                            style="text-decoration: none;">{{range $player.Properties}}{{if eq .Name "name"}}{{.Value}}{{end}}{{end}}
+                        </a>
+                        {{range $action := $actions}}{{if eq $action.Rel "drop-player"}}
+                        <form id="form-{{$action.Rel}}-{{$player.ID}}" action="{{$action.Href}}"
+                            method="{{$action.Method}}">
+                            <input type="hidden" name="@action" value="{{$action.Rel}}">
+                            <input type="hidden" name='{{range $action.Parameters}}{{.Name}}{{end}}'
+                                value='{{$player.ID}}'>
+                            <div class="neon-button-red"
+                                onclick='document.getElementById("form-{{.Rel}}-{{$player.ID}}").submit()'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                &times;
+                            </div>
+                        </form>
+                        {{end}}{{end}}
+                    </div>
+                </li>
+                {{end}}
             </ul>
+            {{range $.Actions}}{{if eq .Rel "register-player"}}
+            <div id="{{.Rel}}-modal" class="w3-modal">
+                <div class="w3-modal-content" style="width: 33%;">
+                    <form class="w3-container w3-dark-gray w3-padding" id="form-{{.Rel}}" action="{{.Href}}"
+                        method="{{.Method}}">
+                        <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
+                            class="w3-button w3-display-topright">&times;</span>
+                        <h2 class="w3-center">{{.Label}}</h2>
+                        <input type="hidden" name="@action" value="{{.Rel}}">
+                        <ul class="w3-ul w3-card w3-gray" id="ul-players">
+
+                        </ul>
+                        <div class="flex-container w3-padding">
+                            <div class="neon-button-green" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                ADD
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="flex-container w3-padding">
+                <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    ADD
+                </div>
+            </div>
+            {{end}}{{end}}
         </div>
         {{end}}
-        {{range .Actions}}{{if eq .Rel "register-player"}}
-        <div id="{{.Rel}}-modal" class="w3-modal">
-            <div class="w3-modal-content" style="width: 33%;">
-                <form class="w3-container w3-dark-gray w3-padding" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
-                    <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
-                        class="w3-button w3-display-topright">&times;</span>
-                    <h2 class="w3-center">{{.Label}}</h2>
-                    <input type="hidden" name="@action" value="{{.Rel}}">
-                    <ul class="w3-ul w3-card w3-hoverable w3-gray" id="ul-players">
-
-                    </ul>
-                </form>
+        {{$properties := .Properties}}
+        {{$actions := .Actions}}
+        {{range $property := .Properties}}{{if eq $property.Name "format"}}{{if eq $property.Value "cube"}}
+        {{range $action  := $actions}}{{if eq $action.Rel "end-phase"}}
+        <form class="flex-container w3-padding" id="form-{{$action.Rel}}" action="{{$action.Href}}" method="{{$action.Method}}">
+            <input type="hidden" name="@action" value="{{$action.Rel}}">
+            <div class="neon-button" onclick='document.getElementById("form-{{$action.Rel}}").submit()'>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                START DRAFT
             </div>
-        </div>
-        <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            ADD
-        </div>
+        </form>
         {{end}}{{end}}
+        {{end}}{{end}}{{end}}
     </div>
 </body>
 

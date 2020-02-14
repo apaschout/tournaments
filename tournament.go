@@ -114,22 +114,10 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	}
 	switch cmd.Action {
 	case ActionRegisterPlayer:
-		var ok bool
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
-		ok, err = s.p.PlayerExists(pID)
-		if !ok {
-			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-			return
-		}
 		err = trn.RegisterPlayer(pID)
 	case ActionDropPlayer:
-		var ok bool
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
-		ok, err = s.p.PlayerExists(pID)
-		if !ok {
-			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-			return
-		}
 		err = trn.DropPlayer(pID)
 	case ActionChangeName:
 		var ok bool
@@ -180,11 +168,6 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	case ActionCreate:
 		trn := NewTournament()
 		err = trn.Create(TournamentID(uuid.MakeV4()))
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-			return
-		}
-		err = trn.ChangeName(string(trn.ID))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
@@ -393,6 +376,17 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 		{
 			Label:  "Register Player",
 			Rel:    ActionRegisterPlayer,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name: ArgumentPlayerID,
+				},
+			},
+		},
+		{
+			Label:  "Drop Player",
+			Rel:    ActionDropPlayer,
 			Href:   resolve("./%s", trn.ID).String(),
 			Method: "POST",
 			Parameters: hyper.Parameters{

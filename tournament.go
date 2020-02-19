@@ -3,8 +3,10 @@ package tournaments
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cognicraft/event"
 	"github.com/cognicraft/hyper"
@@ -12,15 +14,27 @@ import (
 )
 
 type Tournament struct {
-	ID      TournamentID `json:"id"`
-	Version uint64       `json:"version"`
-	Name    string       `json:"name"`
-	Phase   Phase        `json:"phase"`
-	Start   string       `json:"start,omitempty"`
-	End     string       `json:"end,omitempty"`
-	Format  string       `json:"format,omitempty"`
-	Players []PlayerID   `json:"players,omitempty"`
+	ID      TournamentID  `json:"id"`
+	Version uint64        `json:"version"`
+	Name    string        `json:"name"`
+	Phase   Phase         `json:"phase"`
+	Start   string        `json:"start,omitempty"`
+	End     string        `json:"end,omitempty"`
+	Format  string        `json:"format,omitempty"`
+	Seats   []Seat        `json:"seats"`
+	Players []Participant `json:"players,omitempty"`
 	*event.ChangeRecorder
+}
+
+type Participant struct {
+	ID         PlayerID `json:"id"`
+	DraftIndex int      `json:"draftIndex"`
+	Deck       DeckID   `json:"deck"`
+}
+
+type Seat struct {
+	Index  int      `json:"index"`
+	Player PlayerID `json:"player"`
 }
 
 type TournamentID string
@@ -93,7 +107,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	res.AddItem(plrs)
 	if isHtmlReq {
 		// err = templ.ExecuteTemplate(w, "tournament.html", res)
-		err = trn.switchTemplates(w, res)
+		err = trn.switchPhase(w, res)
 		if err != nil {
 			log.Println(err)
 		}
@@ -222,18 +236,18 @@ func (trn *Tournament) handleEndPhaseCube() error {
 	return nil
 }
 
-func (trn *Tournament) switchTemplates(w http.ResponseWriter, item hyper.Item) error {
+func (trn *Tournament) switchPhase(w http.ResponseWriter, data interface{}) error {
 	switch trn.Phase {
 	case PhaseInitialization:
-		err = templ.ExecuteTemplate(w, "tournamentInitialization.html", item)
+		err = templ.ExecuteTemplate(w, "tournamentInitialization.html", data)
 	case PhaseRegistration:
-		err = templ.ExecuteTemplate(w, "tournamentRegistration.html", item)
+		err = templ.ExecuteTemplate(w, "tournamentRegistration.html", data)
 	case PhaseDraft:
-		err = templ.ExecuteTemplate(w, "tournamentDraft.html", item)
+		err = templ.ExecuteTemplate(w, "tournamentDraft.html", data)
 	case PhaseRounds:
-		err = templ.ExecuteTemplate(w, "tournamentRounds.html", item)
+		err = templ.ExecuteTemplate(w, "tournamentRounds.html", data)
 	case PhaseEnded:
-		err = templ.ExecuteTemplate(w, "tournamentEnded.html", item)
+		err = templ.ExecuteTemplate(w, "tournamentEnded.html", data)
 	}
 	if err != nil {
 		return err
@@ -241,31 +255,49 @@ func (trn *Tournament) switchTemplates(w http.ResponseWriter, item hyper.Item) e
 	return nil
 }
 
+func (trn *Tournament) permutatePlayers(eventTime time.Time) {
+	r := rand.New(rand.NewSource(eventTime.Unix()))
+	perm := r.Perm(len(trn.Players))
+	for i, randIndex := range perm {
+		trn.Players[i].DraftIndex = randIndex
+	}
+}
+
 func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
 		Type:  "players",
 	}
-	for _, pID := range trn.Players {
-		plr, err := s.p.FindPlayerByID(pID)
+	for i, par := range trn.Players {
+		plr, err := s.p.FindPlayerByID(par.ID)
 		if err != nil {
 			return plrs, err
 		}
 		item := hyper.Item{
 			Label: "Player",
 			Type:  "player",
-			ID:    string(pID),
+			ID:    string(par.ID),
 			Properties: []hyper.Property{
 				{
 					Label: "Name",
 					Name:  "name",
 					Value: plr.Name,
 				},
+				{
+					Label: "Draft Index",
+					Name:  "draftIndex",
+					Value: trn.Players[i].DraftIndex,
+				},
+				{
+					Label: "Deck",
+					Name:  "deck",
+					Value: trn.Players[i].Deck,
+				},
 			},
 		}
 		pLink := hyper.Link{
 			Rel:  "details",
-			Href: resolve("../players/%s", pID).String(),
+			Href: resolve("../players/%s", par.ID).String(),
 		}
 		item.AddLink(pLink)
 		plrs.AddItem(item)

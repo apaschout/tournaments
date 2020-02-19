@@ -1,6 +1,7 @@
 package tournaments
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -35,10 +36,32 @@ func NewServer(p Projection, es *event.Store) *Server {
 }
 
 func (s *Server) init() {
-	templ, err = templ.ParseGlob("assets/templates/*.html")
-	if err != nil {
-		log.Fatal(err)
+	funcMap := template.FuncMap{
+		"add": func(a, b int) int { return a + b },
+		"draftIndex": func(plr hyper.Item) int {
+			prop, _ := plr.Properties.Find("draftIndex")
+			return prop.Value.(int)
+		},
+		"createSeatForIndex": func(plrs hyper.Items, index int) template.HTML {
+			var name string
+			var href string
+			for _, plr := range plrs {
+				var draftProp hyper.Property
+				draftProp, _ = plr.Properties.Find("draftIndex")
+				if draftProp.Value == index {
+					for _, link := range plr.Links {
+						if link.Rel == "details" {
+							href = link.Href
+						}
+					}
+					prop, _ := plr.Properties.Find("name")
+					name = prop.Value.(string)
+				}
+			}
+			return template.HTML(fmt.Sprintf(`<a class="field flex-container" title="%s" href="%s" target="_blank" style="text-decoration: none;">%d</a>`, name, href, index+1))
+		},
 	}
+	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 
 	sub := s.es.SubscribeToStreamFrom(event.All, s.p.GetVersion())
 	sub.On(s.p.On)

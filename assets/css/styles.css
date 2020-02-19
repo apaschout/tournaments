@@ -1,5 +1,5 @@
 .heading {
-    text-align: center;  
+    text-align: center;
 }
 
 .heading a {
@@ -65,9 +65,10 @@ html {
     cursor: pointer;
 }
 
+/* blue button */
 .neon-button {
-    display:block;
-    width:max-content;
+    display: block;
+    width: max-content;
     position: relative;
     padding: 6px 12px;
     color: #87CEEB;
@@ -147,8 +148,8 @@ html {
 
 /* red button */
 .neon-button-red {
-    display:block;
-    width:max-content;
+    display: block;
+    width: max-content;
     position: relative;
     padding: 6px 12px;
     color: #e61919;
@@ -228,8 +229,8 @@ html {
 
 /* green button */
 .neon-button-green {
-    display:block;
-    width:max-content;
+    display: block;
+    width: max-content;
     position: relative;
     padding: 6px 12px;
     color: #8bc34a;
@@ -305,4 +306,51 @@ html {
     bottom: 100%;
     transition: 0.6s;
     transition-delay: 0.45s;
+}
+
+/* DraftTable */
+#draftContainer {
+    width: 600px;
+    height: 600px;
+    border: 1px solid #000;
+    position: relative;
+}
+
+#center {
+    width: 100px;
+    height: 100px;
+    background-color: #fff;
+    color: #031321;
+    position: absolute;
+    left: 250px;
+    top: 250px;
+    z-index: 2;
+}
+
+/* #crosshair-x {
+    width: 600px;
+    height: 1px;
+    background: #fff;
+    position: absolute;
+    left: 0;
+    top: 300px;
+}
+
+#crosshair-y {
+    width: 1px;
+    height: 600px;
+    background: #fff;
+    position: absolute;
+    left: 300px;
+    top: 0;
+} */
+
+
+.field {
+    width: 50px;
+    height: 50px;;
+    color: #031321;
+    border-radius: 50px;
+    position: absolute;
+    background: #fff;
 }

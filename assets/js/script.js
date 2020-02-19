@@ -76,3 +76,31 @@ function toggleSelected(classList) {
     classList.toggle("selected")
     classList.toggle("hover-green")
 }
+
+function createFields(n) {
+    var container = document.getElementById("draftContainer");
+    for (let i = 0; i < n; i++) {
+        container.insertAdjacentHTML("beforeend", '<div class="field flex-container">' + (i + 1) + '</div>')
+    }
+}
+
+function distributeFields() {
+    var radius = 200;
+    var fields = document.getElementsByClassName("field")
+    var container = document.getElementById("draftContainer")
+    var containerStyles = window.getComputedStyle(container)
+    var width = containerStyles.width.replace("px", "")
+    var height = containerStyles.height.replace("px", "")
+    var angle = 1.5 * Math.PI
+    var step = (2 * Math.PI) / fields.length;
+    console.log(width, height)
+    for (let i = 0; i < fields.length; i++) {
+        let fieldWidth = window.getComputedStyle(fields[i]).width.replace("px", "")
+        let fieldHeight = window.getComputedStyle(fields[i]).height.replace("px", "")
+        var x = Math.round(width / 2 + radius * Math.cos(angle) - fieldWidth / 2);
+        var y = Math.round(height / 2 + radius * Math.sin(angle) - fieldHeight / 2);
+        fields[i].style.left = x + "px"
+        fields[i].style.top = y + "px"
+        angle += step;
+    }
+}

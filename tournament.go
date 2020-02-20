@@ -27,7 +27,7 @@ type Tournament struct {
 }
 
 type Participant struct {
-	ID         PlayerID `json:"id"`
+	Player     PlayerID `json:"player"`
 	DraftIndex int      `json:"draftIndex"`
 	Deck       DeckID   `json:"deck"`
 }
@@ -73,7 +73,7 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, trn := range s.tournaments {
-		item := trn.MakeUndetailedHyperItem(resolve)
+		item := MakeUndetailedTrnHyperItem(trn, resolve)
 		res.AddItem(item)
 	}
 	res.AddLink(link)
@@ -98,7 +98,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := trn.MakeDetailedHyperItem(resolve)
+	res := MakeDetailedTrnHyperItem(*trn, resolve)
 	plrs, err := s.MakeTournamentPlayersHyperItem(*trn, resolve)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
@@ -106,8 +106,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	}
 	res.AddItem(plrs)
 	if isHtmlReq {
-		// err = templ.ExecuteTemplate(w, "tournament.html", res)
-		err = trn.switchPhase(w, res)
+		err = switchPhase(trn.Phase, w, res)
 		if err != nil {
 			log.Println(err)
 		}
@@ -236,8 +235,8 @@ func (trn *Tournament) handleEndPhaseCube() error {
 	return nil
 }
 
-func (trn *Tournament) switchPhase(w http.ResponseWriter, data interface{}) error {
-	switch trn.Phase {
+func switchPhase(p Phase, w http.ResponseWriter, data interface{}) error {
+	switch p {
 	case PhaseInitialization:
 		err = templ.ExecuteTemplate(w, "tournamentInitialization.html", data)
 	case PhaseRegistration:
@@ -248,6 +247,8 @@ func (trn *Tournament) switchPhase(w http.ResponseWriter, data interface{}) erro
 		err = templ.ExecuteTemplate(w, "tournamentRounds.html", data)
 	case PhaseEnded:
 		err = templ.ExecuteTemplate(w, "tournamentEnded.html", data)
+	default:
+		hyper.Write(w, http.StatusOK, data.(hyper.Item))
 	}
 	if err != nil {
 		return err
@@ -269,14 +270,14 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 		Type:  "players",
 	}
 	for i, par := range trn.Players {
-		plr, err := s.p.FindPlayerByID(par.ID)
+		plr, err := s.p.FindPlayerByID(par.Player)
 		if err != nil {
 			return plrs, err
 		}
 		item := hyper.Item{
 			Label: "Player",
 			Type:  "player",
-			ID:    string(par.ID),
+			ID:    string(par.Player),
 			Properties: []hyper.Property{
 				{
 					Label: "Name",
@@ -297,7 +298,7 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 		}
 		pLink := hyper.Link{
 			Rel:  "details",
-			Href: resolve("../players/%s", par.ID).String(),
+			Href: resolve("../players/%s", par.Player).String(),
 		}
 		item.AddLink(pLink)
 		plrs.AddItem(item)
@@ -305,7 +306,7 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 	return plrs, nil
 }
 
-func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+func MakeUndetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
 		Label: trn.Name,
 		Type:  "tournament",
@@ -326,7 +327,7 @@ func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper
 	return item
 }
 
-func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
 		Label: trn.Name,
 		Type:  "tournament",

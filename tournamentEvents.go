@@ -264,7 +264,13 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.Name = string(e.Tournament)
 		trn.Phase = PhaseInitialization
 	case TournamentDeleted:
-		trn.ID = ""
+		trn.Name = ""
+		trn.Phase = ""
+		trn.Start = ""
+		trn.End = ""
+		trn.Format = ""
+		trn.Seats = nil
+		trn.Players = nil
 	case TournamentNameChanged:
 		trn.Name = e.Name
 	case TournamentPhaseChanged:
@@ -275,7 +281,7 @@ func (trn *Tournament) Mutate(e event.Event) {
 	case TournamentFormatChanged:
 		trn.Format = e.Format
 	case TournamentPlayerRegistered:
-		trn.Players = append(trn.Players, Participant{ID: e.Player})
+		trn.Players = append(trn.Players, Participant{Player: e.Player})
 	case TournamentPlayerDropped:
 		trn.removePlayer(e.Player)
 	case TournamentStarted:
@@ -329,7 +335,7 @@ func LoadTournament(es *event.Store, tID TournamentID) (*Tournament, error) {
 
 func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
 	for _, v := range trn.Players {
-		if v.ID == pID {
+		if v.Player == pID {
 			return true
 		}
 	}
@@ -338,7 +344,7 @@ func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
 
 func (trn *Tournament) removePlayer(pID PlayerID) {
 	for i, v := range trn.Players {
-		if v.ID == pID {
+		if v.Player == pID {
 			trn.Players = append(trn.Players[:i], trn.Players[i+1:]...)
 		}
 	}

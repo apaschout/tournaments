@@ -22,7 +22,7 @@
     </div>
     <ul class="w3-ul w3-card w3-hoverable w3-dark-gray w3-margin-top" style="width: 50%;margin:auto;">
         {{range .Items}}
-        <li class="w3-hover-gray" onclick='window.location.href="/player?id={{.ID}}"' style="cursor:pointer">{{.Label}}</li>
+        <li class="w3-hover-gray" onclick='window.location.href="{{details .}}"' style="cursor:pointer">{{.Label}}</li>
         {{end}}
     </ul>
     <form class="w3-margin-top" id="form-create" action="/api/players/" method="POST" style="display:flex; align-items: center; justify-content: center;">

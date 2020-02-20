@@ -8,7 +8,7 @@
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
     <link rel="stylesheet" type="text/css" href="/css/w3.css">
     <script src="/js/script.js"></script>
-    <title>TournamentName - Draft</title>
+    <title>{{name .}} - Draft</title>
 </head>
 
 <body>
@@ -21,25 +21,64 @@
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
-    {{$n := 0}}
-    {{$name := ""}}
-    {{$id := ""}}
-    {{range .Items}}
-    {{$players := .Items}}
-    <div class="flex-container w3-margin-top">
-        <div id="draftContainer">
-            <div id="center" class="flex-container">Table</div>
-            {{range $player := $players}}
-            {{- createSeatForIndex $players $n -}}
-            {{$n = add $n 1}}
-            {{end}}
+    <div class="w3-container w3-margin-top w3-padding" style="width: 40%; margin: auto;background-color: #303030;">
+        <h2 class="w3-center">{{.Label}}</h2>
+        <div class="flex-container" style="width: 90%; margin:auto; justify-content: space-between;">
+            <p>Current Phase: {{range .Properties}}{{if eq .Name "phase"}}{{.Value}}{{end}}{{end}}</p>
+            {{range .Actions}}{{if eq .Rel "delete"}}
+            <div id="{{.Rel}}-modal" class="w3-modal">
+                <div class="w3-modal-content" style="width: 33%;">
+                    <form class="w3-container w3-dark-gray" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                        <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
+                            class="w3-button w3-display-topright">&times;</span>
+                        <h2 class="w3-center">Are you sure about that?</h2>
+                        <input type="hidden" name="@action" value="{{.Rel}}">
+                        <div class="flex-container w3-margin-bottom">
+                            <div class="neon-button-green w3-margin-left"
+                                onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                YES
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="neon-button-red w3-margin-left"
+                onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                DELETE
+            </div>
+            {{end}}{{end}}
         </div>
+        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format:
+            {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
+            <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Started: {{started $}}</p>
+        {{$n := 0}}
+        {{$name := ""}}
+        {{$id := ""}}
+        {{range .Items}}
+        {{$players := .Items}}
+        <div class="flex-container w3-margin-top">
+            <div id="draftContainer">
+                <div id="center" class="flex-container">Table</div>
+                {{range $player := $players}}
+                {{seat $players $n}}
+                {{$n = add $n 1}}
+                {{end}}
+            </div>
+        </div>
+        {{end}}
     </div>
-    {{end}}
     <script>
         document.addEventListener("DOMContentLoaded", e => {
-            // createFields({{$n}})
-            distributeFields()
+            parseDate()
+            distributeSeats()
         });
     </script>
 </body>

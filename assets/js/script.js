@@ -1,19 +1,19 @@
 function parseDate() {
-    let lis = document.getElementsByTagName("li")
-    let start = "Start: "
+    let ps = document.getElementsByTagName("p")
+    let start = "Started: "
     let end = "End: "
-    for (let i = 0; i < lis.length; i++) {
-        let d = lis[i].innerHTML
+    for (let i = 0; i < ps.length; i++) {
+        let d = ps[i].innerHTML
         if (d.includes(start)) {
-            newDate = new Date(d.slice(7, 36))
+            newDate = new Date(d.slice(9, 36))
             if (isValidDate(newDate)) {
-                lis[i].innerHTML = start + newDate.toUTCString()
+                ps[i].innerHTML = start + newDate.toUTCString()
             }
         }
         if (d.includes(end)) {
             newDate = new Date(d.slice(5, 34))
             if (isValidDate(newDate)) {
-                lis[i].innerHTML = end + newDate.toUTCString()
+                ps[i].innerHTML = end + newDate.toUTCString()
             }
         }
     }
@@ -77,30 +77,22 @@ function toggleSelected(classList) {
     classList.toggle("hover-green")
 }
 
-function createFields(n) {
-    var container = document.getElementById("draftContainer");
-    for (let i = 0; i < n; i++) {
-        container.insertAdjacentHTML("beforeend", '<div class="field flex-container">' + (i + 1) + '</div>')
-    }
-}
-
-function distributeFields() {
-    var radius = 200;
-    var fields = document.getElementsByClassName("field")
+function distributeSeats() {
+    var radius = 125;
+    var seats = document.getElementsByClassName("seat")
     var container = document.getElementById("draftContainer")
     var containerStyles = window.getComputedStyle(container)
     var width = containerStyles.width.replace("px", "")
     var height = containerStyles.height.replace("px", "")
     var angle = 1.5 * Math.PI
-    var step = (2 * Math.PI) / fields.length;
-    console.log(width, height)
-    for (let i = 0; i < fields.length; i++) {
-        let fieldWidth = window.getComputedStyle(fields[i]).width.replace("px", "")
-        let fieldHeight = window.getComputedStyle(fields[i]).height.replace("px", "")
-        var x = Math.round(width / 2 + radius * Math.cos(angle) - fieldWidth / 2);
-        var y = Math.round(height / 2 + radius * Math.sin(angle) - fieldHeight / 2);
-        fields[i].style.left = x + "px"
-        fields[i].style.top = y + "px"
+    var step = (2 * Math.PI) / seats.length;
+    for (let i = 0; i < seats.length; i++) {
+        let seatWidth = window.getComputedStyle(seats[i]).width.replace("px", "")
+        let seatHeight = window.getComputedStyle(seats[i]).height.replace("px", "")
+        var x = Math.round(width / 2 + radius * Math.cos(angle) - seatWidth / 2);
+        var y = Math.round(height / 2 + radius * Math.sin(angle) - seatHeight / 2);
+        seats[i].style.left = x + "px"
+        seats[i].style.top = y + "px"
         angle += step;
     }
 }

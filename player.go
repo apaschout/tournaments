@@ -173,10 +173,25 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 			},
 		},
 	}
+	actions := hyper.Actions{
+		{
+			Label:  "Change Name",
+			Rel:    ActionChangeName,
+			Href:   resolve("./%s", plr.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name:        ArgumentName,
+					Placeholder: "New Name...",
+				},
+			},
+		},
+	}
 	link := hyper.Link{
 		Rel:  "self",
 		Href: resolve("./%s", plr.ID).String(),
 	}
+	item.AddActions(actions)
 	item.AddLink(link)
 	return item
 }

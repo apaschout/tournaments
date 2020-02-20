@@ -1,7 +1,6 @@
 package tournaments
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -37,29 +36,12 @@ func NewServer(p Projection, es *event.Store) *Server {
 
 func (s *Server) init() {
 	funcMap := template.FuncMap{
-		"add": func(a, b int) int { return a + b },
-		"draftIndex": func(plr hyper.Item) int {
-			prop, _ := plr.Properties.Find("draftIndex")
-			return prop.Value.(int)
-		},
-		"createSeatForIndex": func(plrs hyper.Items, index int) template.HTML {
-			var name string
-			var href string
-			for _, plr := range plrs {
-				var draftProp hyper.Property
-				draftProp, _ = plr.Properties.Find("draftIndex")
-				if draftProp.Value == index {
-					for _, link := range plr.Links {
-						if link.Rel == "details" {
-							href = link.Href
-						}
-					}
-					prop, _ := plr.Properties.Find("name")
-					name = prop.Value.(string)
-				}
-			}
-			return template.HTML(fmt.Sprintf(`<a class="field flex-container" title="%s" href="%s" target="_blank" style="text-decoration: none;">%d</a>`, name, href, index+1))
-		},
+		"add":        func(a, b int) int { return a + b },
+		"name":       getName,
+		"draftIndex": getDraftIndex,
+		"details":    getDetails,
+		"seat":       createSeatForIndex,
+		"started":    getStart,
 	}
 	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 

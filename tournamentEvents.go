@@ -277,6 +277,9 @@ func (trn *Tournament) Mutate(e event.Event) {
 		if e.Phase == PhaseDraft {
 			trn.permutatePlayers(e.OccurredOn)
 		}
+		if e.Phase == PhaseRounds {
+			trn.MakeMatches()
+		}
 		trn.Phase = e.Phase
 	case TournamentFormatChanged:
 		trn.Format = e.Format

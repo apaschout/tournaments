@@ -22,19 +22,25 @@ type Tournament struct {
 	End     string        `json:"end,omitempty"`
 	Format  string        `json:"format,omitempty"`
 	Seats   []Seat        `json:"seats"`
+	Matches []Match       `json:"matches"`
 	Players []Participant `json:"players,omitempty"`
 	*event.ChangeRecorder
 }
 
 type Participant struct {
-	Player     PlayerID `json:"player"`
-	DraftIndex int      `json:"draftIndex"`
-	Deck       DeckID   `json:"deck"`
+	Player    PlayerID `json:"player"`
+	SeatIndex int      `json:"seatIndex"`
+	Deck      DeckID   `json:"deck"`
 }
 
 type Seat struct {
 	Index  int      `json:"index"`
 	Player PlayerID `json:"player"`
+}
+
+type Match struct {
+	Player1 PlayerID `json:"player1"`
+	Player2 PlayerID `json:"player2"`
 }
 
 type TournamentID string
@@ -106,7 +112,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	}
 	res.AddItem(plrs)
 	if isHtmlReq {
-		err = switchPhase(trn.Phase, w, res)
+		err = switchPhase(trn.Phase, w, r, res)
 		if err != nil {
 			log.Println(err)
 		}
@@ -235,7 +241,7 @@ func (trn *Tournament) handleEndPhaseCube() error {
 	return nil
 }
 
-func switchPhase(p Phase, w http.ResponseWriter, data interface{}) error {
+func switchPhase(p Phase, w http.ResponseWriter, r *http.Request, data interface{}) error {
 	switch p {
 	case PhaseInitialization:
 		err = templ.ExecuteTemplate(w, "tournamentInitialization.html", data)
@@ -244,11 +250,11 @@ func switchPhase(p Phase, w http.ResponseWriter, data interface{}) error {
 	case PhaseDraft:
 		err = templ.ExecuteTemplate(w, "tournamentDraft.html", data)
 	case PhaseRounds:
-		err = templ.ExecuteTemplate(w, "tournamentRounds.html", data)
+		err = templ.ExecuteTemplate(w, "tournamentRoundRobin.html", data)
 	case PhaseEnded:
 		err = templ.ExecuteTemplate(w, "tournamentEnded.html", data)
 	default:
-		hyper.Write(w, http.StatusOK, data.(hyper.Item))
+		http.Redirect(w, r, "/api/tournaments/", http.StatusSeeOther)
 	}
 	if err != nil {
 		return err
@@ -260,7 +266,7 @@ func (trn *Tournament) permutatePlayers(eventTime time.Time) {
 	r := rand.New(rand.NewSource(eventTime.Unix()))
 	perm := r.Perm(len(trn.Players))
 	for i, randIndex := range perm {
-		trn.Players[i].DraftIndex = randIndex
+		trn.Players[i].SeatIndex = randIndex
 	}
 }
 
@@ -276,7 +282,7 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 		}
 		item := hyper.Item{
 			Label: "Player",
-			Type:  "player",
+			Type:  "participant",
 			ID:    string(par.Player),
 			Properties: []hyper.Property{
 				{
@@ -285,9 +291,9 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 					Value: plr.Name,
 				},
 				{
-					Label: "Draft Index",
-					Name:  "draftIndex",
-					Value: trn.Players[i].DraftIndex,
+					Label: "Seat Index",
+					Name:  "seatIndex",
+					Value: trn.Players[i].SeatIndex,
 				},
 				{
 					Label: "Deck",
@@ -347,6 +353,11 @@ func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.
 				Label: "Phase",
 				Name:  "phase",
 				Value: trn.Phase,
+			},
+			{
+				Label: "Matches",
+				Name:  "matches",
+				Value: trn.Matches,
 			},
 			{
 				Label: "Start",

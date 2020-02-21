@@ -42,6 +42,8 @@ func (s *Server) init() {
 		"details":    getDetails,
 		"seat":       createSeatForIndex,
 		"started":    getStart,
+		"format":     getFormat,
+		"matches":    createMatches,
 	}
 	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 

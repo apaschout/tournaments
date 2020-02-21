@@ -11,9 +11,9 @@ func createSeatForIndex(plrs hyper.Items, index int) template.HTML {
 	var name string
 	var href string
 	for _, plr := range plrs {
-		var draftProp hyper.Property
-		draftProp, _ = plr.Properties.Find("draftIndex")
-		if draftProp.Value == index {
+		var seatProp hyper.Property
+		seatProp, _ = plr.Properties.Find("seatIndex")
+		if seatProp.Value == index {
 			for _, link := range plr.Links {
 				if link.Rel == "details" {
 					href = link.Href
@@ -49,4 +49,18 @@ func getStart(trn hyper.Item) string {
 func getName(item hyper.Item) string {
 	prop, _ := item.Properties.Find("name")
 	return prop.Value.(string)
+}
+
+func getFormat(trn hyper.Item) string {
+	prop, _ := trn.Properties.Find("format")
+	return prop.Value.(string)
+}
+
+func createMatches(trn hyper.Item) template.HTML {
+	res := ""
+	prop, _ := trn.Properties.Find("matches")
+	for _, match := range prop.Value.([]Match) {
+		res += fmt.Sprintf("<p>%s vs %s</p>", match.Player1, match.Player2)
+	}
+	return template.HTML(res)
 }

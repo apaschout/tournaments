@@ -64,7 +64,9 @@
                 <input type="hidden" name="@action" value="{{.Rel}}">
                 {{range .Parameters}}
                 <select class="w3-margin-top w3-margin-bottom" name="{{.Name}}" style="width: 40%;">
-                    <option value="cube">Cube</option>
+                    <option></option>
+                    {{$f := format $}}{{$cube := "cube"}}
+                    <option value="cube" {{if eq $f $cube}}selected{{end}}>Cube</option>
                 </select>
                 {{end}}
                 <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>

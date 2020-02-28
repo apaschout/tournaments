@@ -14,16 +14,18 @@ import (
 )
 
 type Tournament struct {
-	ID      TournamentID  `json:"id"`
-	Version uint64        `json:"version"`
-	Name    string        `json:"name"`
-	Phase   Phase         `json:"phase"`
-	Start   string        `json:"start,omitempty"`
-	End     string        `json:"end,omitempty"`
-	Format  string        `json:"format,omitempty"`
-	Seats   []Seat        `json:"seats"`
-	Matches []Match       `json:"matches"`
-	Players []Participant `json:"players,omitempty"`
+	ID         TournamentID  `json:"id"`
+	Version    uint64        `json:"version"`
+	Name       string        `json:"name"`
+	Phase      Phase         `json:"phase"`
+	Start      string        `json:"start,omitempty"`
+	End        string        `json:"end,omitempty"`
+	Format     string        `json:"format,omitempty"`
+	Seats      []Seat        `json:"seats"`
+	Matches    []Match       `json:"matches"`
+	GamesToWin int           `json:"gamesToWin"`
+	Players    []Participant `json:"players,omitempty"`
+	Deleted    bool          `json:"deleted"`
 	*event.ChangeRecorder
 }
 
@@ -38,11 +40,6 @@ type Seat struct {
 	Player PlayerID `json:"player"`
 }
 
-type Match struct {
-	Player1 PlayerID `json:"player1"`
-	Player2 PlayerID `json:"player2"`
-}
-
 type TournamentID string
 
 const (
@@ -53,6 +50,7 @@ const (
 	ActionCreate         = "create"
 	ActionChangeFormat   = "change-format"
 	ActionEndPhase       = "end-phase"
+	ActionEndMatch       = "end-match"
 )
 
 const (
@@ -60,6 +58,8 @@ const (
 	ArgumentPlayerID     = "pid"
 	ArgumentName         = "name"
 	ArgumentFormat       = "format"
+	ArgumentMatch        = "match"
+	ArgumentDraw         = "draw"
 )
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
@@ -161,6 +161,11 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		}
 	case ActionDelete:
 		err = trn.Delete()
+	case ActionEndMatch:
+		i := cmd.Arguments.Int(ArgumentMatch)
+		wnr := cmd.Arguments.String(ArgumentPlayerID)
+		draw := cmd.Arguments.Bool(ArgumentDraw)
+		err = trn.EndMatch(i, PlayerID(wnr), draw)
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}
@@ -173,7 +178,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+	if isHtmlReq {
 		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
 	} else {
 		w.WriteHeader(http.StatusNoContent)
@@ -199,7 +204,7 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
 	}
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+	if isHtmlReq {
 		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
 	} else {
 		w.WriteHeader(http.StatusNoContent)
@@ -225,6 +230,11 @@ func (trn *Tournament) handleEndPhaseCube() error {
 	case PhaseDraft:
 		err = trn.ChangePhase(PhaseRounds)
 	case PhaseRounds:
+		for _, mtc := range trn.Matches {
+			if !mtc.Ended {
+				return fmt.Errorf("Not all Matches have ended")
+			}
+		}
 		err = trn.ChangePhase(PhaseEnded)
 		if err != nil {
 			return err
@@ -436,6 +446,23 @@ func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.
 			Parameters: hyper.Parameters{
 				{
 					Name: ArgumentPlayerID,
+				},
+			},
+		},
+		{
+			Label:  "End Match",
+			Rel:    ActionEndMatch,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name: ArgumentMatch,
+				},
+				{
+					Name: ArgumentPlayerID,
+				},
+				{
+					Name: ArgumentDraw,
 				},
 			},
 		},

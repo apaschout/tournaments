@@ -56,11 +56,31 @@ func getFormat(trn hyper.Item) string {
 	return prop.Value.(string)
 }
 
-func createMatches(trn hyper.Item) template.HTML {
-	res := ""
+func matches(trn hyper.Item) []Match {
 	prop, _ := trn.Properties.Find("matches")
-	for _, match := range prop.Value.([]Match) {
-		res += fmt.Sprintf("<p>%s vs %s</p>", match.Player1, match.Player2)
+	return prop.Value.([]Match)
+}
+
+func actionByRel(trn hyper.Item, rel string) hyper.Action {
+	var res hyper.Action
+	for _, ac := range trn.Actions {
+		if ac.Rel == rel {
+			res = ac
+			break
+		}
 	}
-	return template.HTML(res)
+	return res
+}
+
+func participantNameByID(trn hyper.Item, ID PlayerID) string {
+	var res string
+	parts := trn.Items[0]
+	for _, part := range parts.Items {
+		if part.ID == string(ID) {
+			prop, _ := part.Properties.Find("name")
+			res = prop.Value.(string)
+			break
+		}
+	}
+	return res
 }

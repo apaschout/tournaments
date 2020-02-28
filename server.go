@@ -36,14 +36,16 @@ func NewServer(p Projection, es *event.Store) *Server {
 
 func (s *Server) init() {
 	funcMap := template.FuncMap{
-		"add":        func(a, b int) int { return a + b },
-		"name":       getName,
-		"draftIndex": getDraftIndex,
-		"details":    getDetails,
-		"seat":       createSeatForIndex,
-		"started":    getStart,
-		"format":     getFormat,
-		"matches":    createMatches,
+		"add":                 func(a, b int) int { return a + b },
+		"name":                getName,
+		"draftIndex":          getDraftIndex,
+		"details":             getDetails,
+		"seat":                createSeatForIndex,
+		"started":             getStart,
+		"format":              getFormat,
+		"matches":             matches,
+		"action":              actionByRel,
+		"participantNameByID": participantNameByID,
 	}
 	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 
@@ -112,9 +114,23 @@ func handleError(w http.ResponseWriter, status int, err error, isHtmlReq bool) {
 	if isHtmlReq {
 		err = templ.ExecuteTemplate(w, "error.html", err)
 		if err != nil {
-			hyper.WriteError(w, status, err)
+			writeError(w, status, err)
 		}
 	} else {
-		hyper.WriteError(w, status, err)
+		writeError(w, status, err)
 	}
+}
+
+func writeError(w http.ResponseWriter, status int, err error) {
+	type errorCoder interface {
+		Code() string
+	}
+
+	e := hyper.Error{}
+	e.Message = err.Error()
+	if errC, ok := err.(errorCoder); ok {
+		e.Code = errC.Code()
+	}
+
+	hyper.Write(w, status, hyper.Item{Errors: hyper.Errors{e}})
 }

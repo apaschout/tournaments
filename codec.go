@@ -48,5 +48,13 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.Register("tournament:matches-created", TournamentMatchesCreated{})
+	if err != nil {
+		return nil, err
+	}
+	err = c.Register("tournament:match-ended", TournamentMatchEnded{})
+	if err != nil {
+		return nil, err
+	}
 	return c, nil
 }

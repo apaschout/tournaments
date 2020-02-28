@@ -70,6 +70,31 @@ type TournamentFormatChanged struct {
 	Format     string       `json:"format"`
 }
 
+type TournamentMatchesCreated struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+}
+
+type TournamentMatchEnded struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Match      int          `json:"match"` //index for Matches
+	Winner     PlayerID     `json:"winner"`
+	Draw       bool         `json:"draw"`
+}
+
+type TournamentGameEnded struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Match      int          `json:"match"`
+	Game       int          `json:"game"`
+	Winner     PlayerID     `json:"winner"`
+	Draw       bool         `json:"draw"`
+}
+
 func NewTournament() *Tournament {
 	return &Tournament{
 		ChangeRecorder: event.NewChangeRecorder(),
@@ -144,6 +169,12 @@ func (trn *Tournament) ChangePhase(p Phase) error {
 		Tournament: trn.ID,
 		Phase:      p,
 	})
+	if p == PhaseRounds {
+		err = trn.CreateMatches()
+		if err != nil {
+			return err
+		}
+	}
 	log.Printf("Event: Tournament %v: Phase Changed To %v\n", trn.ID, p)
 	return nil
 }
@@ -251,6 +282,77 @@ func (trn *Tournament) Finish() error {
 	return nil
 }
 
+func (trn *Tournament) CreateMatches() error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if trn.Matches != nil {
+		return fmt.Errorf("Tournament already has matches")
+	}
+	trn.Apply(TournamentMatchesCreated{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+	})
+	log.Printf("Event: Tournament %v: Matches created\n", trn.ID)
+	return nil
+}
+
+func (trn *Tournament) EndMatch(i int, wnr PlayerID, draw bool) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if i >= len(trn.Matches) {
+		return fmt.Errorf("Match index does not exist")
+	}
+
+	if wnr == "" && !draw {
+		return nil
+	}
+	if wnr != "" && draw {
+		wnr = ""
+	}
+	trn.Apply(TournamentMatchEnded{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Match:      i,
+		Winner:     wnr,
+		Draw:       draw,
+	})
+	log.Printf("Event: Tournament %v: Match %d ended... Winner: %v, Draw: %v", trn.ID, i, wnr, draw)
+	return nil
+}
+
+func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if match >= len(trn.Matches) {
+		return fmt.Errorf("Match index does not exist")
+	}
+	if game >= len(trn.Matches[match].Games) {
+		return fmt.Errorf("Game index does not exist")
+	}
+	if wnr == "" && !draw {
+		return nil
+	}
+	if wnr != "" && draw {
+		wnr = ""
+	}
+	trn.Apply(TournamentGameEnded{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Match:      match,
+		Game:       game,
+		Winner:     wnr,
+		Draw:       draw,
+	})
+	log.Printf("Event: Tournament %v: Match %d: Game %d ended... Winner: %v, Draw: %v", trn.ID, match, game, wnr, draw)
+	return nil
+}
+
 func (trn *Tournament) Apply(e event.Event) {
 	trn.Record(e)
 	trn.Mutate(e)
@@ -264,21 +366,12 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.Name = string(e.Tournament)
 		trn.Phase = PhaseInitialization
 	case TournamentDeleted:
-		trn.Name = ""
-		trn.Phase = ""
-		trn.Start = ""
-		trn.End = ""
-		trn.Format = ""
-		trn.Seats = nil
-		trn.Players = nil
+		trn.Deleted = true
 	case TournamentNameChanged:
 		trn.Name = e.Name
 	case TournamentPhaseChanged:
 		if e.Phase == PhaseDraft {
 			trn.permutatePlayers(e.OccurredOn)
-		}
-		if e.Phase == PhaseRounds {
-			trn.MakeMatches()
 		}
 		trn.Phase = e.Phase
 	case TournamentFormatChanged:
@@ -291,6 +384,18 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.Start = e.Start.String()
 	case TournamentEnded:
 		trn.End = e.End.String()
+	case TournamentMatchesCreated:
+		trn.MakeMatches()
+		trn.handleGames()
+	case TournamentMatchEnded:
+		trn.Matches[e.Match].Winner = e.Winner
+		trn.Matches[e.Match].Draw = e.Draw
+		trn.Matches[e.Match].Ended = true
+	case TournamentGameEnded:
+		g := trn.Matches[e.Match].Games[e.Game]
+		g.Winner = e.Winner
+		g.Draw = e.Draw
+		g.Ended = true
 	}
 }
 

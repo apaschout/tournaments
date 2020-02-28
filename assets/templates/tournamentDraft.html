@@ -58,7 +58,7 @@
         </div>
         <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format:
             {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
-            <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Started: {{started $}}</p>
+        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Started: {{started $}}</p>
         {{$n := 0}}
         {{$name := ""}}
         {{$id := ""}}
@@ -74,6 +74,18 @@
             </div>
         </div>
         {{end}}
+        {{range .Actions}}{{if eq .Rel "end-phase"}}
+        <form class="flex-container w3-margin-top" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+            <input type="hidden" name="@action" value="{{.Rel}}">
+            <div class="neon-button w3-margin-left" onclick='document.getElementById("form-{{.Rel}}").submit()'>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                GO TO ROUNDS
+            </div>
+        </form>
+        {{end}}{{end}}
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", e => {

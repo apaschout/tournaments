@@ -16,6 +16,10 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.Register("tournament:gamestowin-changed", TournamentGamesToWinChanged{})
+	if err != nil {
+		return nil, err
+	}
 	err = c.Register("tournament:phase-changed", TournamentPhaseChanged{})
 	if err != nil {
 		return nil, err
@@ -52,7 +56,7 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("tournament:match-ended", TournamentMatchEnded{})
+	err = c.Register("tournament:game-ended", TournamentGameEnded{})
 	if err != nil {
 		return nil, err
 	}

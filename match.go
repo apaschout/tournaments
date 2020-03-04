@@ -4,7 +4,9 @@ type Match struct {
 	Player1 PlayerID `json:"player1"`
 	Player2 PlayerID `json:"player2"`
 	Winner  PlayerID `json:"winner"`
-	Games   []Game   `json:"game"`
+	P1Count int      `json:"p1Count"`
+	P2Count int      `json:"p2Count"`
+	Games   []Game   `json:"games"`
 	Draw    bool     `json:"draw"`
 	Ended   bool     `json:"ended"`
 }
@@ -34,11 +36,11 @@ func (trn *Tournament) MakeMatches() {
 
 	for round := 0; round < numRounds; round++ {
 		plrIdx := round % plrsLen
-		matches = append(matches, Match{Player1: plrs[0], Player2: withoutFirst[plrIdx]})
+		matches = append(matches, Match{Player1: plrs[0], Player2: withoutFirst[plrIdx], Games: []Game{Game{}}})
 		for i := 1; i < halfSize; i++ {
 			plr1 := (round + plrsLen - i) % plrsLen
 			plr2 := (round + i) % plrsLen
-			matches = append(matches, Match{Player1: withoutFirst[plr1], Player2: withoutFirst[plr2]})
+			matches = append(matches, Match{Player1: withoutFirst[plr1], Player2: withoutFirst[plr2], Games: []Game{Game{}}})
 		}
 	}
 	trn.Matches = deleteDummyMatches(matches)
@@ -54,32 +56,28 @@ func deleteDummyMatches(matches []Match) []Match {
 	return matches
 }
 
-//call on TournamentMatchesCreated + on TournamentGameEnded
-func (trn *Tournament) handleGames() {
-	for i, m := range trn.Matches {
-		p1Count := 0
-		p2Count := 0
-		for _, g := range m.Games {
-			if g.Winner == m.Player1 {
-				p1Count++
-			} else if g.Winner == m.Player2 {
-				p2Count++
-			}
+//call on TournamentGameEnded
+func (m *Match) manageGameWins(gamesToWin int) {
+	m.P1Count = 0
+	m.P2Count = 0
+	for _, g := range m.Games {
+		if g.Winner == m.Player1 {
+			m.P1Count++
+		} else if g.Winner == m.Player2 {
+			m.P2Count++
 		}
-		if p1Count < trn.GamesToWin || p2Count < trn.GamesToWin {
-			m.Games = append(m.Games, Game{})
-		} else {
-			var wnr PlayerID
-			var draw bool
-			if p1Count == trn.GamesToWin {
-				wnr = m.Player1
-			} else if p2Count == trn.GamesToWin {
-				wnr = m.Player2
-			}
-			if p1Count == p2Count {
-				draw = true
-			}
-			trn.EndMatch(i, wnr, draw)
+	}
+	if m.P1Count < gamesToWin && m.P2Count < gamesToWin {
+		m.Games = append(m.Games, Game{})
+	} else {
+		if m.P1Count == gamesToWin {
+			m.Winner = m.Player1
+		} else if m.P2Count == gamesToWin {
+			m.Winner = m.Player2
 		}
+		if m.P1Count == m.P2Count {
+			m.Draw = true
+		}
+		m.Ended = true
 	}
 }

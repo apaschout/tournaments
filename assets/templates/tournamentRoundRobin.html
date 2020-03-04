@@ -22,49 +22,71 @@
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
     <div class="w3-container w3-margin-top w3-padding" style="width: 40%; margin: auto;background-color: #303030;">
-        {{$i := 0}}{{$matches := matches .}}{{$matchAction := action . "end-match"}}
+        {{$i := 0}}{{$matches := propertyByName . "matches"}}{{$gameAction := action . "end-game"}}
         {{range $match := $matches}}{{$nameP1 := participantNameByID $ $match.Player1}}{{$nameP2 := participantNameByID $ $match.Player2}}
-        <button class="w3-btn w3-black w3-block" onclick='accordion("content-match-{{$i}}");'>Match {{add $i 1}}:
+        <button class="w3-btn w3-black w3-block" style="margin-top:5px;" onclick='accordion("content-match{{$i}}");'>Match {{add $i 1}}:
             {{$nameP1}} VS
             {{$nameP2}}</button>
-        {{if $match.Ended}}
-        {{if $match.Draw}}
-        <div class="w3-container w3-hide w3-padding" id="content-match-{{$i}}">
-            Match aleady ended... Draw
-        </div>
-        {{else}}
-        <div class="w3-container w3-hide w3-padding" id="content-match-{{$i}}">
-            Match aleady ended... Winner: {{participantNameByID $ $match.Winner}}
-        </div>
-        {{end}}
-        {{else}}
-        <form class="w3-container w3-hide w3-padding" id="content-match-{{$i}}" action="{{$matchAction.Href}}"
-            method="{{$matchAction.Method}}" style="text-align: center;">
-            <input type='hidden' name='@action' value="{{$matchAction.Rel}}">
-            <input type='hidden' name='match' value="{{$i}}">
-            Winner:
-            <select name="pid">
-                <option value="" selected></option>
-                <option value="{{$match.Player1}}">{{$nameP1}}</option>
-                <option value="{{$match.Player2}}">{{$nameP2}}</option>
-            </select>
-            <input type="checkbox" id="chkbx-{{$i}}-draw" name="draw" value="true">
-            <label for="chkbx-{{$i}}-draw">Draw</label>
-            <div class="flex-container w3-padding">
-                <div class="neon-button" onclick='document.getElementById("content-match-{{$i}}").submit()'>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    END MATCH
-                </div>
+        <div id="content-match{{$i}}" class="w3-hide">
+            {{if $match.Ended}}
+            {{if $match.Draw}}
+            <div class="w3-container w3-margin">
+                Match aleady ended... Draw
             </div>
-        </form>
-        {{end}}
+            {{else}}
+            <div class="w3-container w3-padding">
+                Match aleady ended... Winner: {{participantNameByID $ $match.Winner}} {{wins $match}}
+            </div>
+            {{end}}
+            {{end}}
+            {{$n := 0}} {{$games := $match.Games}}
+            {{range $game := $games}}
+            <button class="w3-btn w3-black w3-block" onclick='accordion("content-match{{$i}}-game{{$n}}");'>Game
+                {{add $n 1}}</button>
+            {{if $game.Ended}}
+            {{if $game.Draw}}
+            <div class="w3-container w3-hide w3-padding" id="content-match{{$i}}-game{{$n}}">
+                Game ended... Draw
+            </div>
+            {{else}}
+            <div class="w3-container w3-hide w3-padding" id="content-match{{$i}}-game{{$n}}">
+                Game ended... Winner: {{participantNameByID $ $game.Winner}}
+            </div>
+            {{end}}
+            {{else}}
+            <form class="w3-container w3-hide w3-padding" id="content-match{{$i}}-game{{$n}}"
+                action="{{$gameAction.Href}}" method="{{$gameAction.Method}}" style="text-align: center;">
+                <input type='hidden' name='@action' value="{{$gameAction.Rel}}">
+                <input type="hidden" name="match" value="{{$i}}">
+                <input type='hidden' name='game' value="{{$n}}">
+                Winner:
+                <select name="pid">
+                    <option value="" selected></option>
+                    <option value="{{$match.Player1}}">{{$nameP1}}</option>
+                    <option value="{{$match.Player2}}">{{$nameP2}}</option>
+                </select>
+                <input type="checkbox" id="chkbx-match{{$i}}-game{{$n}}-draw" name="draw" value="true">
+                <label for="chkbx-match{{$i}}-game{{$n}}-draw">Draw</label>
+                <div class="flex-container w3-padding">
+                    <div class="neon-button"
+                        onclick='document.getElementById("content-match{{$i}}-game{{$n}}").submit()'>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        END GAME
+                    </div>
+                </div>
+            </form>
+            {{end}}
+            {{$n = add $n 1}}
+            {{end}}
+        </div>
         {{$i = add $i 1}}
         {{end}}
         {{$actionEndPhase := action $ "end-phase"}}
-        <form id="form-{{$actionEndPhase.Rel}}" class="flex-container" action="{{$actionEndPhase.Href}}" method="{{$actionEndPhase.Method}}">
+        <form id="form-{{$actionEndPhase.Rel}}" class="flex-container" action="{{$actionEndPhase.Href}}"
+            method="{{$actionEndPhase.Method}}">
             <input type="hidden" name="@action" value="{{$actionEndPhase.Rel}}">
             <div class="neon-button" onclick='document.getElementById("form-{{$actionEndPhase.Rel}}").submit()'>
                 <span></span>
@@ -80,8 +102,10 @@
             var acc = document.getElementById(id)
             if (acc.className.indexOf("w3-show") == -1) {
                 acc.className += " w3-show"
+                acc.previousElementSibling.style.backgroundColor = "#101010"
             } else {
                 acc.className = acc.className.replace(" w3-show", "")
+                acc.previousElementSibling.style.backgroundColor = ""
             }
         }
     </script>

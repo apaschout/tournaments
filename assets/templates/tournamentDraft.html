@@ -8,7 +8,7 @@
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
     <link rel="stylesheet" type="text/css" href="/css/w3.css">
     <script src="/js/script.js"></script>
-    <title>{{name .}} - Draft</title>
+    <title>{{propertyByName . "name"}} - Draft</title>
 </head>
 
 <body>
@@ -58,7 +58,7 @@
         </div>
         <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Format:
             {{range .Properties}}{{if eq .Name "format"}}{{.Value}}{{end}}{{end}}</p>
-        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Started: {{started $}}</p>
+        <p class="w3-margin-bottom" style="width: 90%; margin:auto;">Started: {{propertyByName $ "start"}}</p>
         {{$n := 0}}
         {{$name := ""}}
         {{$id := ""}}

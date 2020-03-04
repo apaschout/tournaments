@@ -37,15 +37,12 @@ func NewServer(p Projection, es *event.Store) *Server {
 func (s *Server) init() {
 	funcMap := template.FuncMap{
 		"add":                 func(a, b int) int { return a + b },
-		"name":                getName,
-		"draftIndex":          getDraftIndex,
 		"details":             getDetails,
 		"seat":                createSeatForIndex,
-		"started":             getStart,
-		"format":              getFormat,
-		"matches":             matches,
 		"action":              actionByRel,
 		"participantNameByID": participantNameByID,
+		"propertyByName":      propertyByName,
+		"wins":                wins,
 	}
 	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 

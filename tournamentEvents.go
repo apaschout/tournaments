@@ -76,23 +76,21 @@ type TournamentMatchesCreated struct {
 	Tournament TournamentID `json:"tournament"`
 }
 
-type TournamentMatchEnded struct {
-	ID         string       `json:"id"`
-	OccurredOn time.Time    `json:"occurred-on"`
-	Tournament TournamentID `json:"tournament"`
-	Match      int          `json:"match"` //index for Matches
-	Winner     PlayerID     `json:"winner"`
-	Draw       bool         `json:"draw"`
-}
-
 type TournamentGameEnded struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
 	Tournament TournamentID `json:"tournament"`
-	Match      int          `json:"match"`
-	Game       int          `json:"game"`
+	Match      int          `json:"match"` //index
+	Game       int          `json:"game"`  //index
 	Winner     PlayerID     `json:"winner"`
 	Draw       bool         `json:"draw"`
+}
+
+type TournamentGamesToWinChanged struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	GamesToWin int          `json:"gamesToWin"`
 }
 
 func NewTournament() *Tournament {
@@ -202,6 +200,23 @@ func (trn *Tournament) ChangeFormat(f string) error {
 	return nil
 }
 
+func (trn *Tournament) ChangeGamesToWin(n int) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if n <= 0 {
+		return fmt.Errorf("Games To Win has to be at least 1")
+	}
+	trn.Apply(TournamentGamesToWinChanged{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		GamesToWin: n,
+	})
+	log.Printf("Event: Tournament %v: GamesToWin changed to %d\n", trn.ID, n)
+	return nil
+}
+
 func (trn *Tournament) RegisterPlayer(pID PlayerID) error {
 	if trn.ID == "" {
 		return fmt.Errorf("Tournament does not exist")
@@ -298,32 +313,6 @@ func (trn *Tournament) CreateMatches() error {
 	return nil
 }
 
-func (trn *Tournament) EndMatch(i int, wnr PlayerID, draw bool) error {
-	if trn.ID == "" {
-		return fmt.Errorf("Tournament does not exist")
-	}
-	if i >= len(trn.Matches) {
-		return fmt.Errorf("Match index does not exist")
-	}
-
-	if wnr == "" && !draw {
-		return nil
-	}
-	if wnr != "" && draw {
-		wnr = ""
-	}
-	trn.Apply(TournamentMatchEnded{
-		ID:         uuid.MakeV4(),
-		OccurredOn: time.Now().UTC(),
-		Tournament: trn.ID,
-		Match:      i,
-		Winner:     wnr,
-		Draw:       draw,
-	})
-	log.Printf("Event: Tournament %v: Match %d ended... Winner: %v, Draw: %v", trn.ID, i, wnr, draw)
-	return nil
-}
-
 func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) error {
 	if trn.ID == "" {
 		return fmt.Errorf("Tournament does not exist")
@@ -333,6 +322,9 @@ func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) err
 	}
 	if game >= len(trn.Matches[match].Games) {
 		return fmt.Errorf("Game index does not exist")
+	}
+	if trn.Matches[match].Games[game].Ended {
+		return fmt.Errorf("Game has already ended")
 	}
 	if wnr == "" && !draw {
 		return nil
@@ -369,6 +361,8 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.Deleted = true
 	case TournamentNameChanged:
 		trn.Name = e.Name
+	case TournamentGamesToWinChanged:
+		trn.GamesToWin = e.GamesToWin
 	case TournamentPhaseChanged:
 		if e.Phase == PhaseDraft {
 			trn.permutatePlayers(e.OccurredOn)
@@ -386,16 +380,12 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.End = e.End.String()
 	case TournamentMatchesCreated:
 		trn.MakeMatches()
-		trn.handleGames()
-	case TournamentMatchEnded:
-		trn.Matches[e.Match].Winner = e.Winner
-		trn.Matches[e.Match].Draw = e.Draw
-		trn.Matches[e.Match].Ended = true
 	case TournamentGameEnded:
-		g := trn.Matches[e.Match].Games[e.Game]
+		g := &trn.Matches[e.Match].Games[e.Game]
 		g.Winner = e.Winner
 		g.Draw = e.Draw
 		g.Ended = true
+		trn.Matches[e.Match].manageGameWins(trn.GamesToWin)
 	}
 }
 

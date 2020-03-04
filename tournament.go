@@ -43,14 +43,15 @@ type Seat struct {
 type TournamentID string
 
 const (
-	ActionDelete         = "delete"
-	ActionRegisterPlayer = "register-player"
-	ActionDropPlayer     = "drop-player"
-	ActionChangeName     = "change-name"
-	ActionCreate         = "create"
-	ActionChangeFormat   = "change-format"
-	ActionEndPhase       = "end-phase"
-	ActionEndMatch       = "end-match"
+	ActionDelete           = "delete"
+	ActionRegisterPlayer   = "register-player"
+	ActionDropPlayer       = "drop-player"
+	ActionChangeName       = "change-name"
+	ActionCreate           = "create"
+	ActionChangeFormat     = "change-format"
+	ActionEndPhase         = "end-phase"
+	ActionEndGame          = "end-game"
+	ActionChangeGamesToWin = "change-gamestowin"
 )
 
 const (
@@ -59,6 +60,8 @@ const (
 	ArgumentName         = "name"
 	ArgumentFormat       = "format"
 	ArgumentMatch        = "match"
+	ArgumentGame         = "game"
+	ArgumentGamesToWin   = "gamestowin"
 	ArgumentDraw         = "draw"
 )
 
@@ -147,6 +150,9 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = trn.ChangeName(newName)
+	case ActionChangeGamesToWin:
+		n := cmd.Arguments.Int(ArgumentGamesToWin)
+		err = trn.ChangeGamesToWin(n)
 	case ActionChangeFormat:
 		f := cmd.Arguments.String(ArgumentFormat)
 		err = trn.ChangeFormat(f)
@@ -161,11 +167,13 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		}
 	case ActionDelete:
 		err = trn.Delete()
-	case ActionEndMatch:
-		i := cmd.Arguments.Int(ArgumentMatch)
+	// change to EndGame
+	case ActionEndGame:
+		m := cmd.Arguments.Int(ArgumentMatch)
+		g := cmd.Arguments.Int(ArgumentGame)
 		wnr := cmd.Arguments.String(ArgumentPlayerID)
 		draw := cmd.Arguments.Bool(ArgumentDraw)
-		err = trn.EndMatch(i, PlayerID(wnr), draw)
+		err = trn.EndGame(m, g, PlayerID(wnr), draw)
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}
@@ -384,6 +392,11 @@ func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.
 				Name:  "format",
 				Value: trn.Format,
 			},
+			{
+				Label: "Games To Win",
+				Name:  "gamesToWin",
+				Value: trn.GamesToWin,
+			},
 		},
 	}
 	link := hyper.Link{
@@ -400,6 +413,18 @@ func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.
 				{
 					Name:        ArgumentName,
 					Placeholder: "New Name...",
+				},
+			},
+		},
+		{
+			Label:  "Change Games To Win",
+			Rel:    ActionChangeGamesToWin,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name:        ArgumentGamesToWin,
+					Placeholder: "Games To Win...",
 				},
 			},
 		},
@@ -450,13 +475,16 @@ func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.
 			},
 		},
 		{
-			Label:  "End Match",
-			Rel:    ActionEndMatch,
+			Label:  "End Game",
+			Rel:    ActionEndGame,
 			Href:   resolve("./%s", trn.ID).String(),
 			Method: "POST",
 			Parameters: hyper.Parameters{
 				{
 					Name: ArgumentMatch,
+				},
+				{
+					Name: ArgumentGame,
 				},
 				{
 					Name: ArgumentPlayerID,

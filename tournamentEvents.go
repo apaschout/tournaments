@@ -93,8 +93,9 @@ type TournamentGamesToWinChanged struct {
 	GamesToWin int          `json:"gamesToWin"`
 }
 
-func NewTournament() *Tournament {
+func NewTournament(s *Server) *Tournament {
 	return &Tournament{
+		Server:         s,
 		ChangeRecorder: event.NewChangeRecorder(),
 	}
 }
@@ -157,6 +158,9 @@ func (trn *Tournament) ChangePhase(p Phase) error {
 	}
 	if p == "" {
 		return fmt.Errorf("Phase not specified")
+	}
+	if trn.GamesToWin == 0 {
+		return fmt.Errorf("Games To Win can't be 0")
 	}
 	if trn.Phase == p {
 		return nil
@@ -385,7 +389,7 @@ func (trn *Tournament) Mutate(e event.Event) {
 		g.Winner = e.Winner
 		g.Draw = e.Draw
 		g.Ended = true
-		trn.Matches[e.Match].manageGameWins(trn.GamesToWin)
+		trn.manageGameWins(e.Match, e.Game)
 	}
 }
 
@@ -411,19 +415,22 @@ func (trn *Tournament) Save(es *event.Store, metadata interface{}) error {
 	return nil
 }
 
-func LoadTournament(es *event.Store, tID TournamentID) (*Tournament, error) {
+func LoadTournament(s *Server, tID TournamentID) (*Tournament, error) {
 	codec, err := Codec()
 	if err != nil {
 		return nil, err
 	}
-	trn := NewTournament()
+	trn := NewTournament(s)
 	streamID := string(tID)
-	for rec := range es.Load(streamID) {
+	for rec := range s.es.Load(streamID) {
 		e, err := codec.Decode(rec)
 		if err != nil {
 			return nil, err
 		}
 		trn.Mutate(e)
+	}
+	if trn.Deleted {
+		return nil, fmt.Errorf("Tournament was deleted")
 	}
 	if trn.ID == "" {
 		return nil, fmt.Errorf("Tournament not found")

@@ -30,7 +30,7 @@ func (s *Store) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT, matchesplayed INTEGER);`)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Store) FindAllPlayers() ([]Player, error) {
 
 func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	result := Player{}
-	query := "SELECT * FROM Players WHERE id = ?"
+	query := "SELECT id, name, matchesplayed FROM Players WHERE id = ?"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -120,7 +120,7 @@ func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name)
+		err = rows.Scan(&result.ID, &result.Name, &result.MatchesPlayed)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Player{}, err
@@ -318,7 +318,7 @@ func (s *Store) On(rec event.Record) {
 		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id, name) VALUES (?, ?);"
+			query := "INSERT INTO players (id, name, matchesplayed) VALUES (?, ?, 0);"
 			_, err = t.Exec(query, e.Player, e.Player)
 			if err != nil {
 				return err
@@ -334,6 +334,16 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: PlayerNameChanged")
+			return nil
+		})
+	case PlayerMatchesIncremented:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE players SET matchesplayed = matchesplayed + 1 WHERE id = ?;"
+			_, err = t.Exec(query, e.Player)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: PlayerMatchesIncremented")
 			return nil
 		})
 	}

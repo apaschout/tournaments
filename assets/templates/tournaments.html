@@ -20,15 +20,52 @@
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
+    <div id="delete-modal" class="w3-modal">
+        <div class="w3-modal-content w3-dark-gray" style="width: 33%;">
+            <span onclick='document.getElementById("delete-modal").style.display="none"'
+                class="w3-button w3-display-topright">&times;</span>
+            <h2 class="w3-center">Are you sure about that?</h2>
+            <div class="flex-container w3-margin-bottom">
+                <div class="neon-button-green w3-margin-left">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    YES
+                </div>
+            </div>
+        </div>
+    </div>
     <ul class="w3-ul w3-card w3-hoverable w3-dark-gray w3-margin-top" style="width: 50%;margin:auto;">
-        {{range .Items}}
-        <li class="w3-hover-gray" onclick='window.location.href="/api/tournaments/{{.ID}}"' style="cursor:pointer">
-            {{.Label}}</li>
+        {{range $trn := .Items}}
+        <li class="w3-hover-gray">
+            <div class="flex-container" style="justify-content: space-between;">
+                <a href='{{range .Links}}{{if eq .Rel "details"}}{{.Href}}{{end}}{{end}}'
+                    style="text-decoration: none;">{{.Label}}
+                </a>
+                {{$actions := $trn.Actions}}
+                {{range $action := $actions}}{{if eq $action.Rel "delete"}}
+                <form id="form-{{$action.Rel}}-{{$trn.ID}}" action="{{$action.Href}}" method="{{$action.Method}}">
+                    <input type="hidden" name="@action" value="{{$action.Rel}}">
+                    <div class="neon-button-red"
+                        onclick='submitByModal(document.getElementById("form-{{$action.Rel}}-{{$trn.ID}}"))'>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        &times;
+                    </div>
+                </form>
+                {{end}}{{end}}
+            </div>
+        </li>
         {{end}}
     </ul>
-    <form class="w3-margin-top" id="form-create" action="/api/tournaments/" method="POST" style="display:flex; align-items: center; justify-content: center;">
+    <form class="w3-margin-top" id="form-create" action="/api/tournaments/" method="POST"
+        style="display:flex; align-items: center; justify-content: center;">
         <input type="hidden" name="@action" value="create">
-        <div class="neon-button-green" style="font-size: 18px;" onclick='document.getElementById("form-create").submit()'>
+        <div class="neon-button-green" style="font-size: 18px;"
+            onclick='document.getElementById("form-create").submit()'>
             <span></span>
             <span></span>
             <span></span>
@@ -36,6 +73,13 @@
             CREATE
         </div>
     </form>
+    <script>
+        function submitByModal(form) {
+            var modal = document.getElementById("delete-modal")
+            modal.style.display = "block"
+            modal.firstElementChild.lastElementChild.firstElementChild.addEventListener("click", e => form.submit())
+        }
+    </script>
 </body>
 
 </html>

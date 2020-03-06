@@ -14,6 +14,7 @@ import (
 )
 
 type Tournament struct {
+	Server     *Server       `json:"server"`
 	ID         TournamentID  `json:"id"`
 	Version    uint64        `json:"version"`
 	Name       string        `json:"name"`
@@ -33,6 +34,10 @@ type Participant struct {
 	Player    PlayerID `json:"player"`
 	SeatIndex int      `json:"seatIndex"`
 	Deck      DeckID   `json:"deck"`
+	Matches   int      `json:"matches"`
+	Games     int      `json:"games"`
+	MatchWins int      `json:"matchWins"`
+	GameWins  int      `json:"gameWins"`
 }
 
 type Seat struct {
@@ -101,7 +106,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	resolve := hyper.ExternalURLResolver(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
-	trn, err := LoadTournament(s.es, tID)
+	trn, err := LoadTournament(s, tID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
@@ -129,7 +134,7 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
-	trn, err := LoadTournament(s.es, tID)
+	trn, err := LoadTournament(s, tID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
@@ -167,7 +172,6 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		}
 	case ActionDelete:
 		err = trn.Delete()
-	// change to EndGame
 	case ActionEndGame:
 		m := cmd.Arguments.Int(ArgumentMatch)
 		g := cmd.Arguments.Int(ArgumentGame)
@@ -198,7 +202,7 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	switch cmd.Action {
 	case ActionCreate:
-		trn := NewTournament()
+		trn := NewTournament(s)
 		err = trn.Create(TournamentID(uuid.MakeV4()))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
@@ -288,6 +292,15 @@ func (trn *Tournament) permutatePlayers(eventTime time.Time) {
 	}
 }
 
+func (trn *Tournament) getParticipantByID(ID PlayerID) *Participant {
+	for i := 0; i < len(trn.Players); i++ {
+		if trn.Players[i].Player == ID {
+			return &trn.Players[i]
+		}
+	}
+	return nil
+}
+
 func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
@@ -299,7 +312,7 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 			return plrs, err
 		}
 		item := hyper.Item{
-			Label: "Player",
+			Label: plr.Name,
 			Type:  "participant",
 			ID:    string(par.Player),
 			Properties: []hyper.Property{
@@ -317,6 +330,26 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 					Label: "Deck",
 					Name:  "deck",
 					Value: trn.Players[i].Deck,
+				},
+				{
+					Label: "Matches",
+					Name:  "matches",
+					Value: trn.Players[i].Matches,
+				},
+				{
+					Label: "Match Wins",
+					Name:  "matchWins",
+					Value: trn.Players[i].MatchWins,
+				},
+				{
+					Label: "Games",
+					Name:  "games",
+					Value: trn.Players[i].Games,
+				},
+				{
+					Label: "Game Wins",
+					Name:  "gameWins",
+					Value: trn.Players[i].GameWins,
 				},
 			},
 		}
@@ -343,10 +376,19 @@ func MakeUndetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hype
 			},
 		},
 	}
+	actions := hyper.Actions{
+		{
+			Label:  "Delete",
+			Rel:    ActionDelete,
+			Href:   resolve("./%s", trn.ID).String(),
+			Method: "POST",
+		},
+	}
 	tLink := hyper.Link{
 		Rel:  "details",
 		Href: resolve("./%s", trn.ID).String(),
 	}
+	item.AddActions(actions)
 	item.AddLink(tLink)
 	return item
 }

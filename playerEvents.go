@@ -2,6 +2,7 @@ package tournaments
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cognicraft/event"
@@ -17,8 +18,14 @@ type PlayerCreated struct {
 type PlayerNameChanged struct {
 	ID         string    `json:"id"`
 	OccurredOn time.Time `json:"occurred-on"`
-	Player     PlayerID  `json:"season"`
+	Player     PlayerID  `json:"player"`
 	Name       string    `json:"name"`
+}
+
+type PlayerMatchesIncremented struct {
+	ID         string    `json:"id"`
+	OccurredOn time.Time `json:"occurred-on"`
+	Player     PlayerID  `json:"player"`
 }
 
 func NewPlayer() *Player {
@@ -39,6 +46,7 @@ func (plr *Player) Create(id PlayerID) error {
 		OccurredOn: time.Now().UTC(),
 		Player:     id,
 	})
+	log.Printf("Event: Player %s: Created\n", plr.ID)
 	return nil
 }
 
@@ -58,6 +66,20 @@ func (plr *Player) ChangeName(name string) error {
 		Player:     plr.ID,
 		Name:       name,
 	})
+	log.Printf("Event: Player %s: Name Changed To %s\n", plr.ID, name)
+	return nil
+}
+
+func (plr *Player) IncrementMatches() error {
+	if plr.ID == "" {
+		return fmt.Errorf("Player does not exist")
+	}
+	plr.Apply(PlayerMatchesIncremented{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Player:     plr.ID,
+	})
+	log.Printf("Event: Player %s: Total Matches Incremented\n", plr.ID)
 	return nil
 }
 
@@ -74,6 +96,8 @@ func (plr *Player) Mutate(e event.Event) {
 		plr.Name = string(e.Player)
 	case PlayerNameChanged:
 		plr.Name = e.Name
+	case PlayerMatchesIncremented:
+		plr.MatchesPlayed++
 	}
 }
 
@@ -114,7 +138,7 @@ func LoadPlayer(es *event.Store, pID PlayerID) (*Player, error) {
 		plr.Mutate(e)
 	}
 	if plr.ID == "" {
-		return nil, fmt.Errorf("Season not found")
+		return nil, fmt.Errorf("Player not found")
 	}
 	return plr, nil
 }

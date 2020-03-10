@@ -336,7 +336,7 @@ func (s *Store) On(rec event.Record) {
 			log.Println("Projection: PlayerNameChanged")
 			return nil
 		})
-	case PlayerMatchesIncremented:
+	case PlayerMatchPlayed:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
 			query := "UPDATE players SET matchesplayed = matchesplayed + 1 WHERE id = ?;"
 			_, err = t.Exec(query, e.Player)

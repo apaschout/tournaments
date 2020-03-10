@@ -178,6 +178,20 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		wnr := cmd.Arguments.String(ArgumentPlayerID)
 		draw := cmd.Arguments.Bool(ArgumentDraw)
 		err = trn.EndGame(m, g, PlayerID(wnr), draw)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+			return
+		}
+		// plr1, err = LoadPlayer(s.es, trn.Matches[m].Player1)
+		// if err != nil {
+		// 	handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+		// 	return
+		// }
+		// plr2, err = LoadPlayer(s.es, trn.Matches[m].Player2)
+		// if err != nil {
+		// 	handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+		// 	return
+		// }
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}

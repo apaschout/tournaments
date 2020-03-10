@@ -1,7 +1,5 @@
 package tournaments
 
-import "fmt"
-
 type Match struct {
 	Player1 PlayerID `json:"player1"`
 	Player2 PlayerID `json:"player2"`
@@ -64,58 +62,46 @@ func (trn *Tournament) manageGameWins(match int, game int) {
 	g := &m.Games[game]
 	part1 := trn.getParticipantByID(m.Player1)
 	part2 := trn.getParticipantByID(m.Player2)
-	plr1, err := trn.Server.getPlayerByID(m.Player1)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	plr2, err := trn.Server.getPlayerByID(m.Player2)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(plr1, plr2)
 	if g.Winner == m.Player1 {
 		m.P1Count++
 		part1.GameWins++
-		plr1.GamesWon++
 	} else if g.Winner == m.Player2 {
 		m.P2Count++
 		part2.GameWins++
-		plr2.GamesWon++
 	}
 	part1.Games++
 	part2.Games++
-
-	plr1.GamesPlayed++
-	plr2.GamesPlayed++
 	if m.P1Count < trn.GamesToWin && m.P2Count < trn.GamesToWin {
 		m.Games = append(m.Games, Game{})
-	} else {
-		if m.P1Count == trn.GamesToWin {
-			m.Winner = m.Player1
-			part1.MatchWins++
-			plr1.MatchesWon++
-		} else if m.P2Count == trn.GamesToWin {
-			m.Winner = m.Player2
-			part2.MatchWins++
-			plr2.MatchesWon++
-		}
-		if m.P1Count == m.P2Count {
-			m.Draw = true
-		}
-		m.Ended = true
+	}
+	//  else {
+	// 	if m.P1Count == trn.GamesToWin {
+	// 		m.Winner = m.Player1
+	// 		part1.MatchWins++
+	// 	} else if m.P2Count == trn.GamesToWin {
+	// 		m.Winner = m.Player2
+	// 		part2.MatchWins++
+	// 	}
+	// 	if m.P1Count == m.P2Count {
+	// 		m.Draw = true
+	// 	}
+	// 	m.Ended = true
 
-		part1.Matches++
-		part2.Matches++
+	// 	part1.Matches++
+	// 	part2.Matches++
 
-		// err = plr1.IncrementMatches()
-		// if err != nil {
-		// 	log.Println(err)
-		// }
-		// err = plr2.IncrementMatches()
-		// if err != nil {
-		// 	log.Println(err)
-		// }
+	// }
+}
+
+func (trn *Tournament) manageMatchWin(match int) {
+	m := &trn.Matches[match]
+	part1 := trn.getParticipantByID(m.Player1)
+	part2 := trn.getParticipantByID(m.Player2)
+	part1.Matches++
+	part2.Matches++
+	if m.Winner == part1.Player {
+		part1.MatchWins++
+	} else if m.Winner == part2.Player {
+		part2.MatchWins++
 	}
 }

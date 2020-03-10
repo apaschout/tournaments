@@ -76,6 +76,15 @@ type TournamentMatchesCreated struct {
 	Tournament TournamentID `json:"tournament"`
 }
 
+type TournamentMatchEnded struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	Match      int          `json:"match"` //index
+	Winner     PlayerID     `json:"winner"`
+	Draw       bool         `json:"draw"`
+}
+
 type TournamentGameEnded struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
@@ -234,6 +243,18 @@ func (trn *Tournament) RegisterPlayer(pID PlayerID) error {
 	if trn.Phase != PhaseRegistration {
 		return fmt.Errorf("Not in registration phase")
 	}
+	plr, err := LoadPlayer(trn.Server.es, pID)
+	if err != nil {
+		return err
+	}
+	err = plr.RegisterTournament(trn.ID)
+	if err != nil {
+		return err
+	}
+	err = plr.Save(trn.Server.es, nil)
+	if err != nil {
+		return err
+	}
 	trn.Apply(TournamentPlayerRegistered{
 		ID:         uuid.MakeV4(),
 		OccurredOn: time.Now().UTC(),
@@ -346,6 +367,100 @@ func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) err
 		Draw:       draw,
 	})
 	log.Printf("Event: Tournament %v: Match %d: Game %d ended... Winner: %v, Draw: %v", trn.ID, match, game, wnr, draw)
+	plr1, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player1)
+	if err != nil {
+		return err
+	}
+	plr2, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player2)
+	if err != nil {
+		return err
+	}
+	err = plr1.IncrementGames()
+	if err != nil {
+		return err
+	}
+	err = plr2.IncrementGames()
+	if err != nil {
+		return err
+	}
+	switch wnr {
+	case plr1.ID:
+		err = plr1.IncrementGamesWon()
+	case plr2.ID:
+		err = plr2.IncrementGamesWon()
+	}
+	if err != nil {
+		return err
+	}
+	err = plr1.Save(trn.Server.es, nil)
+	if err != nil {
+		return err
+	}
+	err = plr2.Save(trn.Server.es, nil)
+	if err != nil {
+		return err
+	}
+	if trn.Matches[match].P1Count == trn.GamesToWin || trn.Matches[match].P2Count == trn.GamesToWin {
+		err = trn.EndMatch(match, wnr, draw)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (trn *Tournament) EndMatch(match int, wnr PlayerID, draw bool) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if match >= len(trn.Matches) {
+		return fmt.Errorf("Match index does not exist")
+	}
+	if trn.Matches[match].Ended {
+		return fmt.Errorf("Match already ended")
+	}
+	trn.Apply(TournamentMatchEnded{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		Match:      match,
+		Winner:     wnr,
+		Draw:       draw,
+	})
+	log.Printf("Event: Tournament %s: Match %d: Ended... Winner: %s, Draw: %v\n", trn.ID, match, wnr, draw)
+	plr1, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player1)
+	if err != nil {
+		return err
+	}
+	plr2, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player2)
+	if err != nil {
+		return err
+	}
+	err = plr1.IncrementMatches()
+	if err != nil {
+		return err
+	}
+	err = plr2.IncrementMatches()
+	if err != nil {
+		return err
+	}
+	switch wnr {
+	case plr1.ID:
+		err = plr1.IncrementMatchesWon()
+	case plr2.ID:
+		err = plr2.IncrementMatchesWon()
+	}
+	if err != nil {
+		return err
+	}
+	err = plr1.Save(trn.Server.es, nil)
+	if err != nil {
+		return err
+	}
+	err = plr2.Save(trn.Server.es, nil)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -390,6 +505,12 @@ func (trn *Tournament) Mutate(e event.Event) {
 		g.Draw = e.Draw
 		g.Ended = true
 		trn.manageGameWins(e.Match, e.Game)
+	case TournamentMatchEnded:
+		m := &trn.Matches[e.Match]
+		m.Winner = e.Winner
+		m.Draw = e.Draw
+		m.Ended = true
+		trn.manageMatchWin(e.Match)
 	}
 }
 

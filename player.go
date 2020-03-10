@@ -12,13 +12,14 @@ import (
 )
 
 type Player struct {
-	ID            PlayerID `json:"id,omitempty"`
-	Version       uint64   `json:"version"`
-	Name          string   `json:"name"`
-	MatchesPlayed int      `json:"matchesPlayed"`
-	MatchesWon    int      `json:"matchesWon"`
-	GamesPlayed   int      `json:"gamesPlayed"`
-	GamesWon      int      `json:"gamesWon"`
+	ID            PlayerID       `json:"id,omitempty"`
+	Version       uint64         `json:"version"`
+	Name          string         `json:"name"`
+	Tournaments   []TournamentID `json:"tournaments"`
+	MatchesPlayed int            `json:"matchesPlayed"`
+	MatchesWon    int            `json:"matchesWon"`
+	GamesPlayed   int            `json:"gamesPlayed"`
+	GamesWon      int            `json:"gamesWon"`
 	*event.ChangeRecorder
 }
 
@@ -143,15 +144,6 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) getPlayerByID(ID PlayerID) (*Player, error) {
-	for i := 0; i < len(s.players); i++ {
-		if s.players[i].ID == ID {
-			return &s.players[i], nil
-		}
-	}
-	return nil, fmt.Errorf("Player %s not found\n", ID)
-}
-
 func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
 		Label: plr.Name,
@@ -183,6 +175,11 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 				Label: "Name",
 				Name:  "name",
 				Value: plr.Name,
+			},
+			{
+				Label: "Tournaments",
+				Name:  "tournaments",
+				Value: plr.Tournaments,
 			},
 			{
 				Label: "Total Matches Played",

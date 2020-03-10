@@ -231,3 +231,14 @@ func LoadPlayer(es *event.Store, pID PlayerID) (*Player, error) {
 	}
 	return plr, nil
 }
+
+func LoadPlayers(es *event.Store, pIDs []PlayerID) ([]*Player, error) {
+	res := make([]*Player, len(pIDs))
+	for i, pID := range pIDs {
+		res[i], err = LoadPlayer(es, pID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}

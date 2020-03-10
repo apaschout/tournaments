@@ -367,38 +367,25 @@ func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) err
 		Draw:       draw,
 	})
 	log.Printf("Event: Tournament %v: Match %d: Game %d ended... Winner: %v, Draw: %v", trn.ID, match, game, wnr, draw)
-	plr1, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player1)
+	plrs, err := LoadPlayers(trn.Server.es, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
 	if err != nil {
 		return err
 	}
-	plr2, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player2)
-	if err != nil {
-		return err
-	}
-	err = plr1.IncrementGames()
-	if err != nil {
-		return err
-	}
-	err = plr2.IncrementGames()
-	if err != nil {
-		return err
-	}
-	switch wnr {
-	case plr1.ID:
-		err = plr1.IncrementGamesWon()
-	case plr2.ID:
-		err = plr2.IncrementGamesWon()
-	}
-	if err != nil {
-		return err
-	}
-	err = plr1.Save(trn.Server.es, nil)
-	if err != nil {
-		return err
-	}
-	err = plr2.Save(trn.Server.es, nil)
-	if err != nil {
-		return err
+	for _, plr := range plrs {
+		err = plr.IncrementGames()
+		if err != nil {
+			return err
+		}
+		if plr.ID == wnr {
+			err = plr.IncrementGamesWon()
+			if err != nil {
+				return err
+			}
+		}
+		err = plr.Save(trn.Server.es, nil)
+		if err != nil {
+			return err
+		}
 	}
 	if trn.Matches[match].P1Count == trn.GamesToWin || trn.Matches[match].P2Count == trn.GamesToWin {
 		err = trn.EndMatch(match, wnr, draw)
@@ -428,39 +415,27 @@ func (trn *Tournament) EndMatch(match int, wnr PlayerID, draw bool) error {
 		Draw:       draw,
 	})
 	log.Printf("Event: Tournament %s: Match %d: Ended... Winner: %s, Draw: %v\n", trn.ID, match, wnr, draw)
-	plr1, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player1)
+	plrs, err := LoadPlayers(trn.Server.es, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
 	if err != nil {
 		return err
 	}
-	plr2, err := LoadPlayer(trn.Server.es, trn.Matches[match].Player2)
-	if err != nil {
-		return err
+	for _, plr := range plrs {
+		err = plr.IncrementMatches()
+		if err != nil {
+			return err
+		}
+		if plr.ID == wnr {
+			err = plr.IncrementMatchesWon()
+			if err != nil {
+				return err
+			}
+		}
+		err = plr.Save(trn.Server.es, nil)
+		if err != nil {
+			return err
+		}
 	}
-	err = plr1.IncrementMatches()
-	if err != nil {
-		return err
-	}
-	err = plr2.IncrementMatches()
-	if err != nil {
-		return err
-	}
-	switch wnr {
-	case plr1.ID:
-		err = plr1.IncrementMatchesWon()
-	case plr2.ID:
-		err = plr2.IncrementMatchesWon()
-	}
-	if err != nil {
-		return err
-	}
-	err = plr1.Save(trn.Server.es, nil)
-	if err != nil {
-		return err
-	}
-	err = plr2.Save(trn.Server.es, nil)
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 

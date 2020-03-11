@@ -1,5 +1,5 @@
 function parseDate() {
-    let ps = document.getElementsByTagName("p")
+    let ps = document.getElementsByClassName("date")
     let start = "Started: "
     let end = "End: "
     for (let i = 0; i < ps.length; i++) {

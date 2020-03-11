@@ -318,7 +318,7 @@ func (trn *Tournament) getParticipantByID(ID PlayerID) *Participant {
 func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
-		Type:  "players",
+		Type:  "participants",
 	}
 	for i, par := range trn.Players {
 		plr, err := s.p.FindPlayerByID(par.Player)

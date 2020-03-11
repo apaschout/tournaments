@@ -9,6 +9,11 @@
     <link rel="stylesheet" type="text/css" href="/css/w3.css">
     <script src="/js/script.js"></script>
     <title>Tournaments</title>
+    <script>
+        document.addEventListener("DOMContentLoaded", e => {
+            parseDate()
+        });
+    </script>
 </head>
 
 <body>
@@ -21,71 +26,69 @@
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
         <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
     </div>
-    <div class="flex-container w3-margin-top" style="width:50%;margin:auto">
-        {{range .Actions}}
-        {{if ne .Rel "end-phase"}}
-        <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display = "block"'>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            {{.Label}}
-        </div>
-        <div id="{{.Rel}}-modal" class="w3-modal">
-            <div class="w3-modal-content">
-                <form class="w3-container w3-dark-gray" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
-                    <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
-                        class="w3-button w3-display-topright">&times;</span>
-                    <h2 class="w3-center">{{.Label}}</h2>
-                    <input type="hidden" name="@action" value="{{.Rel}}">
-                    {{if ne .Rel "change-format"}}
-                    {{range .Parameters}}
-                    <input class="w3-margin-bottom w3-center" style="width: 30%;margin:auto;" type="text"
-                        name="{{.Name}}" placeholder="{{.Placeholder}}" autocomplete="off">
-                    {{end}}
-                    {{else}}
-                    {{range .Parameters}}
-                    <select class="w3-margin-bottom w3-center" style="width: 30%;margin: auto;" name="{{.Name}}">
-                        
-                        <option value="cube">Cube</option>
-                    </select>
-                    {{end}}
-                    {{end}}
-                    <div class="neon-button w3-margin-bottom"
-                        onclick='document.getElementById("form-{{.Rel}}").submit()'>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        OK
-                    </div>
-                </form>
+    <div class="w3-container w3-margin-top w3-padding" style="width: 40%; margin: auto;background-color: #303030;">
+        <h2 class="w3-center">{{.Label}}</h2>
+        <div class="flex-container" style="width: 90%; margin:auto; justify-content: space-between;">
+            <p>Current Phase: {{propertyByName . "phase"}}</p>
+            {{$actionDel := action $ "delete"}}
+            {{if $actionDel.Rel}}
+            <div id="{{.Rel}}-modal" class="w3-modal">
+                <div class="w3-modal-content" style="width: 33%;">
+                    <form class="w3-container w3-dark-gray" id="form-{{$actionDel.Rel}}" action="{{$actionDel.Href}}" method="{{$actionDel.Method}}">
+                        <span onclick='document.getElementById("{{$actionDel.Rel}}-modal").style.display="none"'
+                            class="w3-button w3-display-topright">&times;</span>
+                        <h2 class="w3-center">Are you sure about that?</h2>
+                        <input type="hidden" name="@action" value="{{$actionDel.Rel}}">
+                        <div class="flex-container w3-margin-bottom">
+                            <div class="neon-button-green w3-margin-left"
+                                onclick='document.getElementById("form-{{$actionDel.Rel}}").submit()'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                YES
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
+            <div class="neon-button-red w3-margin-left"
+                onclick='document.getElementById("{{$actionDel.Rel}}-modal").style.display="block"'>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                DELETE
+            </div>
+            {{end}}
         </div>
-        {{end}}
-        {{end}}
-    </div>
-    <ul class="w3-ul w3-card w3-dark-gray w3-margin-top" style="width: 50%;margin:auto;">
-        {{range .Properties}}
-        <li>{{.Label}}: {{.Value}}</li>
-        {{end}}
-    </ul>
-    {{range .Actions}}
-    {{if eq .Rel "end-phase"}}
-    <div class="w3-margin-top" style="display:flex; align-items: center; justify-content: center;">
-        <div class="neon-button" onclick='document.getElementById("form-{{.Rel}}").submit()'>
-            <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                {{.Label}}
-                <input type="hidden" name="@action" value="{{.Rel}}">
-            </form>
-        </div>
-    </div>
-    {{end}}
-    {{end}}
+        <p>Format: {{propertyByName . "format"}}</p>
+        <p class="date">Started: {{propertyByName . "start"}}</p>
+        <p class="date">End: {{propertyByName . "end"}}</p>
+        <table class="w3-table" id="standings">
+            <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Matches</th>
+                <th>Match Wins</th>
+                <th>Games</th>
+                <th>Game Wins</th>
+            </tr>
+            {{$index := 1}}
+            {{$parts := getParticipants $}}
+            {{$sorted := sortParticipants $parts}}
+            {{range $part := $sorted}}
+            <tr>
+                <td align="center"><div class="medal flex-container">{{$index}}</div></td>
+                <td>{{propertyByName $part "name"}}</td>
+                <td>{{propertyByName $part "matches"}}</td>
+                <td>{{propertyByName $part "matchWins"}}</td>
+                <td>{{propertyByName $part "games"}}</td>
+                <td>{{propertyByName $part "gameWins"}}</td>
+            </tr>
+            {{$index = add $index 1}}
+            {{end}}
+        </table>
 </body>
 
 </html>

@@ -72,3 +72,75 @@ func wins(m Match) string {
 		return fmt.Sprintf("(%d : %d)", m.P1Count, m.P2Count)
 	}
 }
+
+func getParticipants(trn hyper.Item) []hyper.Item {
+	res := []hyper.Item{}
+	partItem := hyper.Item{}
+	for _, v := range trn.Items {
+		if v.Type == "participants" {
+			partItem = v
+			break
+		}
+	}
+	for _, v := range partItem.Items {
+		if v.Type == "participant" {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
+func sortParticipants(items []hyper.Item) []hyper.Item {
+	if len(items) == 1 {
+		return items
+	}
+	middle := int(len(items) / 2)
+	var (
+		l = make([]hyper.Item, middle)
+		r = make([]hyper.Item, len(items)-middle)
+	)
+	for i := 0; i < len(items); i++ {
+		if i < middle {
+			l[i] = items[i]
+		} else {
+			r[i-middle] = items[i]
+		}
+	}
+	return merge(sortParticipants(l), sortParticipants(r))
+}
+
+func merge(l, r []hyper.Item) []hyper.Item {
+	res := make([]hyper.Item, len(l)+len(r))
+	i := 0
+	for len(l) > 0 && len(r) > 0 {
+		matchesL, _ := l[0].Properties.Find("matchWins")
+		matchesR, _ := r[0].Properties.Find("matchWins")
+
+		gamesL, _ := l[0].Properties.Find("gameWins")
+		gamesR, _ := r[0].Properties.Find("gameWins")
+		if matchesL.Value.(int) > matchesR.Value.(int) {
+			res[i] = l[0]
+			l = l[1:]
+		} else if matchesL.Value.(int) < matchesR.Value.(int) {
+			res[i] = r[0]
+			r = r[1:]
+		} else if gamesL.Value.(int) > gamesR.Value.(int) {
+			res[i] = l[0]
+			l = l[1:]
+		} else {
+			res[i] = r[0]
+			r = r[1:]
+		}
+		i++
+	}
+
+	for j := 0; j < len(l); j++ {
+		res[i] = l[j]
+		i++
+	}
+	for j := 0; j < len(r); j++ {
+		res[i] = r[j]
+		i++
+	}
+	return res
+}

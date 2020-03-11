@@ -20,7 +20,7 @@ Requirements Overview
 The overall goal of tournaments is to provide an API for managing:
 * Decks
 * Players
-* Seasons
+* Tournaments
 
 ### Decks
 A Decks here is either a combination of a name and a link to a Deck-Builder
@@ -35,20 +35,20 @@ A Player is a profile which contains various information like:
 * Name
 * Winrate
 * Favourite Decks
-* Seasons participation
+* Tournament participation
 
-### Seasons
-A Season is a time restricted event in which players may participate and play matches according
-to the Season's format. A Season will require:
+### Tournaments
+A Tournament is a time restricted event in which players may participate and play matches according
+to the Tournament's format. A Tournament will require:
 * Format
 * Players and their chosen Decks
 And will show various stats like:
 * Standings
-  * If the Season is still ongoing: shows current standings
-  * If the Season is finished: shows summary of Season and final standings
-* Brackets, if the current formats allows it 
+  * If the Tournament is still ongoing: shows current standings
+  * If the Tournament is finished: shows summary of Tournament and final standings
+* Brackets, if the current format allows it 
 
-Quality Goals {#_quality_goals}
+Quality Goals
 -------------
 
 +-------------+---------------------------+---------------------------+
@@ -61,7 +61,7 @@ Quality Goals {#_quality_goals}
 | *           |                           |                           |
 +-------------+---------------------------+---------------------------+
 
-Stakeholders {#_stakeholders}
+Stakeholders
 ------------
 
 +-------------+---------------------------+---------------------------+
@@ -83,14 +83,14 @@ Architecture Constraints
 System Scope and Context {#section-system-scope-and-context}
 ========================
 
-Business Context {#_business_context}
+Business Context
 ----------------
 
 **\<Diagram or Table\>**
 
 **\<optionally: Explanation of external domain interfaces\>**
 
-Technical Context {#_technical_context}
+Technical Context
 -----------------
 
 **\<Diagram or Table\>**
@@ -99,13 +99,13 @@ Technical Context {#_technical_context}
 
 **\<Mapping Input/Output to Channels\>**
 
-Solution Strategy {#section-solution-strategy}
+Solution Strategy
 =================
 
-Building Block View {#section-building-block-view}
+Building Block View
 ===================
 
-Whitebox Overall System {#_whitebox_overall_system}
+Whitebox Overall System
 -----------------------
 
 ***\<Overview Diagram\>***
@@ -150,7 +150,7 @@ Important Interfaces
 
 ### \<Name interface m\> {#__name_interface_m}
 
-Level 2 {#_level_2}
+Level 2
 -------
 
 ### White Box *\<building block 1\>* {#_white_box_emphasis_building_block_1_emphasis}
@@ -167,7 +167,7 @@ Level 2 {#_level_2}
 
 *\<white box template\>*
 
-Level 3 {#_level_3}
+Level 3
 -------
 
 ### White Box \<\_building block x.1\_\> {#_white_box_building_block_x_1}
@@ -182,10 +182,10 @@ Level 3 {#_level_3}
 
 *\<white box template\>*
 
-Runtime View {#section-runtime-view}
+Runtime View
 ============
 
-\<Runtime Scenario 1\> {#__runtime_scenario_1}
+\<Runtime Scenario 1\>
 ----------------------
 
 -   *\<insert runtime diagram or textual description of the scenario\>*
@@ -193,19 +193,19 @@ Runtime View {#section-runtime-view}
 -   *\<insert description of the notable aspects of the interactions
     between the building block instances depicted in this diagram.\>*
 
-\<Runtime Scenario 2\> {#__runtime_scenario_2}
+\<Runtime Scenario 2\>
 ----------------------
 
 ... {#_}
 ---
 
-\<Runtime Scenario n\> {#__runtime_scenario_n}
+\<Runtime Scenario n\>
 ----------------------
 
-Deployment View {#section-deployment-view}
+Deployment View
 ===============
 
-Infrastructure Level 1 {#_infrastructure_level_1}
+Infrastructure Level 1
 ----------------------
 
 ***\<Overview Diagram\>***
@@ -222,7 +222,7 @@ Mapping of Building Blocks to Infrastructure
 
 :   *\<description of the mapping\>*
 
-Infrastructure Level 2 {#_infrastructure_level_2}
+Infrastructure Level 2
 ----------------------
 
 ### *\<Infrastructure Element 1\>* {#__emphasis_infrastructure_element_1_emphasis}
@@ -239,42 +239,42 @@ Infrastructure Level 2 {#_infrastructure_level_2}
 
 *\<diagram + explanation\>*
 
-Cross-cutting Concepts {#section-concepts}
+Cross-cutting Concepts
 ======================
 
-*\<Concept 1\>* {#__emphasis_concept_1_emphasis}
+*\<Concept 1\>*
 ---------------
 
 *\<explanation\>*
 
-*\<Concept 2\>* {#__emphasis_concept_2_emphasis}
+*\<Concept 2\>*
 ---------------
 
 *\<explanation\>*
 
 ...
 
-*\<Concept n\>* {#__emphasis_concept_n_emphasis}
+*\<Concept n\>*
 ---------------
 
 *\<explanation\>*
 
-Design Decisions {#section-design-decisions}
+Design Decisions
 ================
 
-Quality Requirements {#section-quality-scenarios}
+Quality Requirements
 ====================
 
-Quality Tree {#_quality_tree}
+Quality Tree
 ------------
 
-Quality Scenarios {#_quality_scenarios}
+Quality Scenarios
 -----------------
 
-Risks and Technical Debts {#section-technical-risks}
+Risks and Technical Debts
 =========================
 
-Glossary {#section-glossary}
+Glossary
 ========
 
 +-----------------------------------+-----------------------------------+

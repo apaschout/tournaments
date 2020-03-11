@@ -43,6 +43,8 @@ func (s *Server) init() {
 		"participantNameByID": participantNameByID,
 		"propertyByName":      propertyByName,
 		"wins":                wins,
+		"getParticipants":     getParticipants,
+		"sortParticipants":    sortParticipants,
 	}
 	templ = template.Must(template.New("server").Funcs(funcMap).ParseGlob("assets/templates/*.html"))
 

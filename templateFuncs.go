@@ -47,6 +47,17 @@ func actionByRel(trn hyper.Item, rel string) hyper.Action {
 	return res
 }
 
+func itemByType(item hyper.Item, t string) hyper.Item {
+	var res hyper.Item
+	for _, v := range item.Items {
+		if v.Type == t {
+			res = v
+			break
+		}
+	}
+	return res
+}
+
 func participantNameByID(trn hyper.Item, ID PlayerID) string {
 	var res string
 	parts := trn.Items[0]

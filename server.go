@@ -42,6 +42,7 @@ func (s *Server) init() {
 		"action":              actionByRel,
 		"participantNameByID": participantNameByID,
 		"propertyByName":      propertyByName,
+		"itemByType":          itemByType,
 		"wins":                wins,
 		"getParticipants":     getParticipants,
 		"sortParticipants":    sortParticipants,
@@ -63,6 +64,8 @@ func (s *Server) init() {
 	s.router.Route("/api/tournaments/:id").GET(chain.ThenFunc(s.handleGETTournament))
 	s.router.Route("/api/tournaments/:id").POST(chain.ThenFunc(s.handlePOSTTournament))
 	s.router.Route("/api/tournaments/").POST(chain.ThenFunc(s.handlePOSTTournaments))
+
+	s.router.Route("/api/standings/:id").GET(chain.ThenFunc(s.handleGETStandings))
 
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))

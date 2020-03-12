@@ -465,7 +465,7 @@ func (trn *Tournament) Mutate(e event.Event) {
 	case TournamentFormatChanged:
 		trn.Format = e.Format
 	case TournamentPlayerRegistered:
-		trn.Players = append(trn.Players, Participant{Player: e.Player})
+		trn.Participants = append(trn.Participants, Participant{Player: e.Player})
 	case TournamentPlayerDropped:
 		trn.removePlayer(e.Player)
 	case TournamentStarted:
@@ -535,7 +535,7 @@ func LoadTournament(s *Server, tID TournamentID) (*Tournament, error) {
 }
 
 func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
-	for _, v := range trn.Players {
+	for _, v := range trn.Participants {
 		if v.Player == pID {
 			return true
 		}
@@ -544,9 +544,9 @@ func (trn *Tournament) isPlayerRegistered(pID PlayerID) bool {
 }
 
 func (trn *Tournament) removePlayer(pID PlayerID) {
-	for i, v := range trn.Players {
+	for i, v := range trn.Participants {
 		if v.Player == pID {
-			trn.Players = append(trn.Players[:i], trn.Players[i+1:]...)
+			trn.Participants = append(trn.Participants[:i], trn.Participants[i+1:]...)
 		}
 	}
 }

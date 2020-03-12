@@ -19,7 +19,7 @@ type Game struct {
 
 func (trn *Tournament) MakeMatches() {
 	plrs := []PlayerID{}
-	for _, par := range trn.Players {
+	for _, par := range trn.Participants {
 		plrs = append(plrs, par.Player)
 	}
 	if len(plrs)%2 != 0 {

@@ -38,7 +38,7 @@ func TestMakeMatches(t *testing.T) {
 		},
 	}
 	trn := Tournament{
-		Players: plrs,
+		Participants: plrs,
 	}
 
 	trn.MakeMatches()

@@ -14,19 +14,19 @@ import (
 )
 
 type Tournament struct {
-	Server     *Server       `json:"server"`
-	ID         TournamentID  `json:"id"`
-	Version    uint64        `json:"version"`
-	Name       string        `json:"name"`
-	Phase      Phase         `json:"phase"`
-	Start      string        `json:"start,omitempty"`
-	End        string        `json:"end,omitempty"`
-	Format     string        `json:"format,omitempty"`
-	Seats      []Seat        `json:"seats"`
-	Matches    []Match       `json:"matches"`
-	GamesToWin int           `json:"gamesToWin"`
-	Players    []Participant `json:"players,omitempty"`
-	Deleted    bool          `json:"deleted"`
+	Server       *Server       `json:"server"`
+	ID           TournamentID  `json:"id"`
+	Version      uint64        `json:"version"`
+	Name         string        `json:"name"`
+	Phase        Phase         `json:"phase"`
+	Start        string        `json:"start,omitempty"`
+	End          string        `json:"end,omitempty"`
+	Format       string        `json:"format,omitempty"`
+	Seats        []Seat        `json:"seats"`
+	Matches      []Match       `json:"matches"`
+	GamesToWin   int           `json:"gamesToWin"`
+	Participants []Participant `json:"players,omitempty"`
+	Deleted      bool          `json:"deleted"`
 	*event.ChangeRecorder
 }
 
@@ -87,7 +87,7 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, trn := range s.tournaments {
-		item := MakeUndetailedTrnHyperItem(trn, resolve)
+		item := trn.MakeUndetailedHyperItem(resolve)
 		res.AddItem(item)
 	}
 	res.AddLink(link)
@@ -113,7 +113,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := MakeDetailedTrnHyperItem(*trn, resolve)
-	plrs, err := s.MakeTournamentPlayersHyperItem(*trn, resolve)
+	plrs, err := trn.MakeParticipantsHyperItem(resolve)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
@@ -182,16 +182,6 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
 		}
-		// plr1, err = LoadPlayer(s.es, trn.Matches[m].Player1)
-		// if err != nil {
-		// 	handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-		// 	return
-		// }
-		// plr2, err = LoadPlayer(s.es, trn.Matches[m].Player2)
-		// if err != nil {
-		// 	handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-		// 	return
-		// }
 	default:
 		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}
@@ -245,7 +235,7 @@ func (trn *Tournament) handleEndPhaseCube() error {
 		}
 		err = trn.ChangePhase(PhaseRegistration)
 	case PhaseRegistration:
-		if len(trn.Players) == 0 {
+		if len(trn.Participants) == 0 {
 			return fmt.Errorf("Can't proceed to next Phase: No Players registered")
 		}
 		err = trn.ChangePhase(PhaseDraft)
@@ -300,28 +290,28 @@ func switchPhase(p Phase, w http.ResponseWriter, r *http.Request, data interface
 
 func (trn *Tournament) permutatePlayers(eventTime time.Time) {
 	r := rand.New(rand.NewSource(eventTime.Unix()))
-	perm := r.Perm(len(trn.Players))
+	perm := r.Perm(len(trn.Participants))
 	for i, randIndex := range perm {
-		trn.Players[i].SeatIndex = randIndex
+		trn.Participants[i].SeatIndex = randIndex
 	}
 }
 
 func (trn *Tournament) getParticipantByID(ID PlayerID) *Participant {
-	for i := 0; i < len(trn.Players); i++ {
-		if trn.Players[i].Player == ID {
-			return &trn.Players[i]
+	for i := 0; i < len(trn.Participants); i++ {
+		if trn.Participants[i].Player == ID {
+			return &trn.Participants[i]
 		}
 	}
 	return nil
 }
 
-func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.ResolverFunc) (hyper.Item, error) {
+func (trn *Tournament) MakeParticipantsHyperItem(resolve hyper.ResolverFunc) (hyper.Item, error) {
 	plrs := hyper.Item{
 		Label: "Participating Players",
 		Type:  "participants",
 	}
-	for i, par := range trn.Players {
-		plr, err := s.p.FindPlayerByID(par.Player)
+	for i, par := range trn.Participants {
+		plr, err := trn.Server.p.FindPlayerByID(par.Player)
 		if err != nil {
 			return plrs, err
 		}
@@ -338,32 +328,32 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 				{
 					Label: "Seat Index",
 					Name:  "seatIndex",
-					Value: trn.Players[i].SeatIndex,
+					Value: trn.Participants[i].SeatIndex,
 				},
 				{
 					Label: "Deck",
 					Name:  "deck",
-					Value: trn.Players[i].Deck,
+					Value: trn.Participants[i].Deck,
 				},
 				{
 					Label: "Matches",
 					Name:  "matches",
-					Value: trn.Players[i].Matches,
+					Value: trn.Participants[i].Matches,
 				},
 				{
 					Label: "Match Wins",
 					Name:  "matchWins",
-					Value: trn.Players[i].MatchWins,
+					Value: trn.Participants[i].MatchWins,
 				},
 				{
 					Label: "Games",
 					Name:  "games",
-					Value: trn.Players[i].Games,
+					Value: trn.Participants[i].Games,
 				},
 				{
 					Label: "Game Wins",
 					Name:  "gameWins",
-					Value: trn.Players[i].GameWins,
+					Value: trn.Participants[i].GameWins,
 				},
 			},
 		}
@@ -377,7 +367,7 @@ func (s *Server) MakeTournamentPlayersHyperItem(trn Tournament, resolve hyper.Re
 	return plrs, nil
 }
 
-func MakeUndetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
+func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{
 		Label: trn.Name,
 		Type:  "tournament",

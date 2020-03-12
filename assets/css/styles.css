@@ -367,3 +367,35 @@ html {
     background-color: #cd7f32;
     color: black;
 }
+
+/* matches */
+#matchesContainer{
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.matchContainer{
+    width: 25%;
+    height: 100px;
+}
+
+.matchRect{
+    height: 50%;
+}
+
+.matchSquare{
+    width: 50%;
+    word-break: break-word;
+    height: 100%;
+    background-color: red;
+    color: black;
+    border-style: solid;
+    border-color: white;
+    border-width: 1px;
+}
+
+.greenMatchSquare{
+    background-color: green;
+}

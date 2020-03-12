@@ -106,10 +106,10 @@ func sortParticipants(items []hyper.Item) []hyper.Item {
 			r[i-middle] = items[i]
 		}
 	}
-	return merge(sortParticipants(l), sortParticipants(r))
+	return mergeParticipants(sortParticipants(l), sortParticipants(r))
 }
 
-func merge(l, r []hyper.Item) []hyper.Item {
+func mergeParticipants(l, r []hyper.Item) []hyper.Item {
 	res := make([]hyper.Item, len(l)+len(r))
 	i := 0
 	for len(l) > 0 && len(r) > 0 {

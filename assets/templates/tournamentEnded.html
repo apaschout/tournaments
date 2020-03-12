@@ -32,9 +32,10 @@
             <p>Current Phase: {{propertyByName . "phase"}}</p>
             {{$actionDel := action $ "delete"}}
             {{if $actionDel.Rel}}
-            <div id="{{.Rel}}-modal" class="w3-modal">
+            <div id="{{$actionDel.Rel}}-modal" class="w3-modal">
                 <div class="w3-modal-content" style="width: 33%;">
-                    <form class="w3-container w3-dark-gray" id="form-{{$actionDel.Rel}}" action="{{$actionDel.Href}}" method="{{$actionDel.Method}}">
+                    <form class="w3-container w3-dark-gray" id="form-{{$actionDel.Rel}}" action="{{$actionDel.Href}}"
+                        method="{{$actionDel.Method}}">
                         <span onclick='document.getElementById("{{$actionDel.Rel}}-modal").style.display="none"'
                             class="w3-button w3-display-topright">&times;</span>
                         <h2 class="w3-center">Are you sure about that?</h2>
@@ -65,13 +66,12 @@
         <p>Format: {{propertyByName . "format"}}</p>
         <p class="date">Started: {{propertyByName . "start"}}</p>
         <p class="date">End: {{propertyByName . "end"}}</p>
-        <table class="w3-table" id="standings">
+        <h3 class="w3-center">Final Standings</h3>
+        <table class="w3-table w3-bordered w3-border" id="standings">
             <tr>
                 <th>Rank</th>
                 <th>Player</th>
-                <th>Matches</th>
                 <th>Match Wins</th>
-                <th>Games</th>
                 <th>Game Wins</th>
             </tr>
             {{$index := 1}}
@@ -79,16 +79,75 @@
             {{$sorted := sortParticipants $parts}}
             {{range $part := $sorted}}
             <tr>
-                <td align="center"><div class="medal flex-container">{{$index}}</div></td>
-                <td>{{propertyByName $part "name"}}</td>
-                <td>{{propertyByName $part "matches"}}</td>
+                <td>
+                    <div class="medal flex-container">{{$index}}</div>
+                </td>
+                <td><a href="{{details $part}}" target="_blank">{{propertyByName $part "name"}}</a></td>
                 <td>{{propertyByName $part "matchWins"}}</td>
-                <td>{{propertyByName $part "games"}}</td>
                 <td>{{propertyByName $part "gameWins"}}</td>
             </tr>
             {{$index = add $index 1}}
             {{end}}
         </table>
+        <h3 class="w3-center">Matches</h3>
+        <div id="matchesContainer">
+            {{$i := 1}}{{$matches := propertyByName $ "matches"}}
+            {{range $match := $matches}}
+            <div class="matchContainer w3-margin-left w3-margin-right"
+                onclick="document.getElementById('match-modal-{{$i}}').style.display = 'block';"
+                style="cursor: pointer;">
+                <div class="w3-center">M{{$i}}</div>
+                <div class="matchRect flex-container">
+                    <div
+                        class="matchSquare flex-container {{if eq $match.Player1 $match.Winner}}greenMatchSquare{{end}}">
+                        <div class="w3-center">{{participantNameByID $ $match.Player1}}</div>
+                    </div>
+                    <div
+                        class="matchSquare flex-container {{if eq $match.Player2 $match.Winner}}greenMatchSquare{{end}}">
+                        <div class="w3-center">{{participantNameByID $ $match.Player2}}</div>
+                    </div>
+                </div>
+            </div>
+            <div id="match-modal-{{$i}}" class="w3-modal">
+                <div class="w3-modal-content" style="width: 33%;">
+                    <div class="w3-container w3-dark-gray">
+                        <span onclick='document.getElementById("match-modal-{{$i}}").style.display="none"'
+                            class="w3-button w3-display-topright">&times;</span>
+                        <h2 class="w3-center">Match {{$i}}:</h2>
+                        <h3 class="w3-center">{{participantNameByID $ $match.Player1}} VS
+                            {{participantNameByID $ $match.Player2}}</h3>
+                        <table class="w3-table w3-bordered">
+                            <tr>
+                                <th>Game</th>
+                                <th>Stats</th>
+                            </tr>
+                            {{$games := $match.Games}}
+                            {{range $game := $games}}
+                            <tr>
+                                <td>
+                                    <div class="matchRect flex-container">
+                                        <div
+                                            class="matchSquare flex-container {{if eq $match.Player1 $game.Winner}}greenMatchSquare{{end}}">
+                                            <div class="w3-center">{{participantNameByID $ $match.Player1}}</div>
+                                        </div>
+                                        <div
+                                            class="matchSquare flex-container {{if eq $match.Player2 $game.Winner}}greenMatchSquare{{end}}">
+                                            <div class="w3-center">{{participantNameByID $ $match.Player2}}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                </td>
+                            </tr>
+                            {{end}}
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {{$i = add $i 1}}
+            {{end}}
+        </div>
+    </div>
 </body>
 
 </html>

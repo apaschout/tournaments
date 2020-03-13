@@ -14,7 +14,6 @@ import (
 )
 
 type Tournament struct {
-	Server       *Server       `json:"server"`
 	ID           TournamentID  `json:"id"`
 	Version      uint64        `json:"version"`
 	Name         string        `json:"name"`
@@ -28,6 +27,7 @@ type Tournament struct {
 	Participants []Participant `json:"players,omitempty"`
 	Deleted      bool          `json:"deleted"`
 	*event.ChangeRecorder
+	Server *Server
 }
 
 type Participant struct {

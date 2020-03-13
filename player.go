@@ -12,15 +12,13 @@ import (
 )
 
 type Player struct {
-	ID            PlayerID       `json:"id,omitempty"`
-	Version       uint64         `json:"version"`
-	Name          string         `json:"name"`
-	Tournaments   []TournamentID `json:"tournaments"`
-	MatchesPlayed int            `json:"matchesPlayed"`
-	MatchesWon    int            `json:"matchesWon"`
-	GamesPlayed   int            `json:"gamesPlayed"`
-	GamesWon      int            `json:"gamesWon"`
+	ID          PlayerID       `json:"id,omitempty"`
+	Version     uint64         `json:"version"`
+	Name        string         `json:"name"`
+	Tournaments []TournamentID `json:"tournaments"`
+	Tracker     TrackerID      `json:"tracker"`
 	*event.ChangeRecorder
+	Server *Server
 }
 
 type PlayerID string
@@ -60,7 +58,7 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 	resolve := hyper.ExternalURLResolver(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
-	plr, err := LoadPlayer(s.es, pID)
+	plr, err := LoadPlayer(s, pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
@@ -82,7 +80,7 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
 
-	plr, err := LoadPlayer(s.es, pID)
+	plr, err := LoadPlayer(s, pID)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 		return
@@ -122,8 +120,8 @@ func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
 	cmd := hyper.ExtractCommand(r)
 	switch cmd.Action {
 	case ActionCreate:
-		plr := NewPlayer()
-		err = plr.Create(PlayerID(uuid.MakeV4()))
+		plr := NewPlayer(s)
+		err = plr.Create(PlayerID(uuid.MakeV4()), TrackerID(uuid.MakeV4()))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
@@ -182,24 +180,9 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 				Value: plr.Tournaments,
 			},
 			{
-				Label: "Total Matches Played",
-				Name:  "matchesPlayed",
-				Value: plr.MatchesPlayed,
-			},
-			{
-				Label: "Total Matches Won",
-				Name:  "matchesWon",
-				Value: plr.MatchesWon,
-			},
-			{
-				Label: "Total Games Played",
-				Name:  "gamesPlayed",
-				Value: plr.GamesPlayed,
-			},
-			{
-				Label: "Total Games Won",
-				Name:  "gamesWon",
-				Value: plr.GamesWon,
+				Label: "Tracker",
+				Name:  "tracker",
+				Value: plr.Tracker,
 			},
 		},
 	}

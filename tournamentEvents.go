@@ -243,7 +243,7 @@ func (trn *Tournament) RegisterPlayer(pID PlayerID) error {
 	if trn.Phase != PhaseRegistration {
 		return fmt.Errorf("Not in registration phase")
 	}
-	plr, err := LoadPlayer(trn.Server.es, pID)
+	plr, err := LoadPlayer(trn.Server, pID)
 	if err != nil {
 		return err
 	}
@@ -367,22 +367,26 @@ func (trn *Tournament) EndGame(match int, game int, wnr PlayerID, draw bool) err
 		Draw:       draw,
 	})
 	log.Printf("Event: Tournament %v: Match %d: Game %d ended... Winner: %v, Draw: %v", trn.ID, match, game, wnr, draw)
-	plrs, err := LoadPlayers(trn.Server.es, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
+	plrs, err := LoadPlayers(trn.Server, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
 	if err != nil {
 		return err
 	}
 	for _, plr := range plrs {
-		err = plr.IncrementGames()
+		trk, err := LoadTracker(trn.Server.es, plr.Tracker)
 		if err != nil {
 			return err
 		}
-		if plr.ID == wnr {
-			err = plr.IncrementGamesWon()
+		err = trk.IncrementGames()
+		if err != nil {
+			return err
+		}
+		if trk.Player == wnr {
+			err = trk.IncrementGamesWon()
 			if err != nil {
 				return err
 			}
 		}
-		err = plr.Save(trn.Server.es, nil)
+		err = trk.Save(trn.Server.es, nil)
 		if err != nil {
 			return err
 		}
@@ -415,22 +419,26 @@ func (trn *Tournament) EndMatch(match int, wnr PlayerID, draw bool) error {
 		Draw:       draw,
 	})
 	log.Printf("Event: Tournament %s: Match %d: Ended... Winner: %s, Draw: %v\n", trn.ID, match, wnr, draw)
-	plrs, err := LoadPlayers(trn.Server.es, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
+	plrs, err := LoadPlayers(trn.Server, []PlayerID{trn.Matches[match].Player1, trn.Matches[match].Player2})
 	if err != nil {
 		return err
 	}
 	for _, plr := range plrs {
-		err = plr.IncrementMatches()
+		trk, err := LoadTracker(trn.Server.es, plr.Tracker)
 		if err != nil {
 			return err
 		}
-		if plr.ID == wnr {
-			err = plr.IncrementMatchesWon()
+		err = trk.IncrementMatches()
+		if err != nil {
+			return err
+		}
+		if trk.Player == wnr {
+			err = trk.IncrementMatchesWon()
 			if err != nil {
 				return err
 			}
 		}
-		err = plr.Save(trn.Server.es, nil)
+		err = trk.Save(trn.Server.es, nil)
 		if err != nil {
 			return err
 		}

@@ -13,6 +13,7 @@ type PlayerCreated struct {
 	ID         string    `json:"id"`
 	OccurredOn time.Time `json:"occured-on"`
 	Player     PlayerID  `json:"player"`
+	Tracker    TrackerID `json:"tracker"`
 }
 
 type PlayerNameChanged struct {
@@ -22,30 +23,6 @@ type PlayerNameChanged struct {
 	Name       string    `json:"name"`
 }
 
-type PlayerMatchPlayed struct {
-	ID         string    `json:"id"`
-	OccurredOn time.Time `json:"occurred-on"`
-	Player     PlayerID  `json:"player"`
-}
-
-type PlayerMatchWon struct {
-	ID         string    `json:"id"`
-	OccurredOn time.Time `json:"occurred-on"`
-	Player     PlayerID  `json:"player"`
-}
-
-type PlayerGamePlayed struct {
-	ID         string    `json:"id"`
-	OccurredOn time.Time `json:"occurred-on"`
-	Player     PlayerID  `json:"player"`
-}
-
-type PlayerGameWon struct {
-	ID         string    `json:"id"`
-	OccurredOn time.Time `json:"occurred-on"`
-	Player     PlayerID  `json:"player"`
-}
-
 type PlayerTournamentRegistered struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
@@ -53,13 +30,14 @@ type PlayerTournamentRegistered struct {
 	Tournament TournamentID `json:"Tournament"`
 }
 
-func NewPlayer() *Player {
+func NewPlayer(s *Server) *Player {
 	return &Player{
+		Server:         s,
 		ChangeRecorder: event.NewChangeRecorder(),
 	}
 }
 
-func (plr *Player) Create(id PlayerID) error {
+func (plr *Player) Create(id PlayerID, tracker TrackerID) error {
 	if plr.ID != "" {
 		return fmt.Errorf("Player already exists")
 	}
@@ -70,7 +48,17 @@ func (plr *Player) Create(id PlayerID) error {
 		ID:         uuid.MakeV4(),
 		OccurredOn: time.Now().UTC(),
 		Player:     id,
+		Tracker:    tracker,
 	})
+	trk := NewTracker()
+	err = trk.Create(tracker, id)
+	if err != nil {
+		return err
+	}
+	err = trk.Save(plr.Server.es, nil)
+	if err != nil {
+		return err
+	}
 	log.Printf("Event: Player %s: Created\n", plr.ID)
 	return nil
 }
@@ -92,58 +80,6 @@ func (plr *Player) ChangeName(name string) error {
 		Name:       name,
 	})
 	log.Printf("Event: Player %s: Name Changed To %s\n", plr.ID, name)
-	return nil
-}
-
-func (plr *Player) IncrementMatches() error {
-	if plr.ID == "" {
-		return fmt.Errorf("Player does not exist")
-	}
-	plr.Apply(PlayerMatchPlayed{
-		ID:         uuid.MakeV4(),
-		OccurredOn: time.Now().UTC(),
-		Player:     plr.ID,
-	})
-	log.Printf("Event: Player %s: Total Matches Incremented\n", plr.ID)
-	return nil
-}
-
-func (plr *Player) IncrementMatchesWon() error {
-	if plr.ID == "" {
-		return fmt.Errorf("Player does not exist")
-	}
-	plr.Apply(PlayerMatchWon{
-		ID:         uuid.MakeV4(),
-		OccurredOn: time.Now().UTC(),
-		Player:     plr.ID,
-	})
-	log.Printf("Event: Player %s: Matches Won Incremented\n", plr.ID)
-	return nil
-}
-
-func (plr *Player) IncrementGames() error {
-	if plr.ID == "" {
-		return fmt.Errorf("Player does not exist")
-	}
-	plr.Apply(PlayerGamePlayed{
-		ID:         uuid.MakeV4(),
-		OccurredOn: time.Now().UTC(),
-		Player:     plr.ID,
-	})
-	log.Printf("Event: Player %s: Total Games incremented\n", plr.ID)
-	return nil
-}
-
-func (plr *Player) IncrementGamesWon() error {
-	if plr.ID == "" {
-		return fmt.Errorf("Player does not exist")
-	}
-	plr.Apply(PlayerGameWon{
-		ID:         uuid.MakeV4(),
-		OccurredOn: time.Now().UTC(),
-		Player:     plr.ID,
-	})
-	log.Printf("Event: Player %s: Games Won incremented\n", plr.ID)
 	return nil
 }
 
@@ -175,16 +111,9 @@ func (plr *Player) Mutate(e event.Event) {
 	case PlayerCreated:
 		plr.ID = e.Player
 		plr.Name = string(e.Player)
+		plr.Tracker = e.Tracker
 	case PlayerNameChanged:
 		plr.Name = e.Name
-	case PlayerMatchPlayed:
-		plr.MatchesPlayed++
-	case PlayerMatchWon:
-		plr.MatchesWon++
-	case PlayerGamePlayed:
-		plr.GamesPlayed++
-	case PlayerGameWon:
-		plr.GamesWon++
 	case PlayerTournamentRegistered:
 		plr.Tournaments = append(plr.Tournaments, e.Tournament)
 	}
@@ -212,14 +141,14 @@ func (plr *Player) Save(es *event.Store, metadata interface{}) error {
 	return nil
 }
 
-func LoadPlayer(es *event.Store, pID PlayerID) (*Player, error) {
+func LoadPlayer(s *Server, pID PlayerID) (*Player, error) {
 	codec, err := Codec()
 	if err != nil {
 		return nil, err
 	}
-	plr := NewPlayer()
+	plr := NewPlayer(s)
 	streamID := string(pID)
-	for rec := range es.Load(streamID) {
+	for rec := range s.es.Load(streamID) {
 		e, err := codec.Decode(rec)
 		if err != nil {
 			return nil, err
@@ -232,10 +161,10 @@ func LoadPlayer(es *event.Store, pID PlayerID) (*Player, error) {
 	return plr, nil
 }
 
-func LoadPlayers(es *event.Store, pIDs []PlayerID) ([]*Player, error) {
+func LoadPlayers(s *Server, pIDs []PlayerID) ([]*Player, error) {
 	res := make([]*Player, len(pIDs))
 	for i, pID := range pIDs {
-		res[i], err = LoadPlayer(es, pID)
+		res[i], err = LoadPlayer(s, pID)
 		if err != nil {
 			return nil, err
 		}

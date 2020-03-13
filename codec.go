@@ -56,6 +56,7 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = c.Register("player:created", PlayerCreated{})
 	if err != nil {
 		return nil, err
@@ -64,23 +65,28 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("player:matches-played", PlayerMatchPlayed{})
-	if err != nil {
-		return nil, err
-	}
-	err = c.Register("player:match-won", PlayerMatchWon{})
-	if err != nil {
-		return nil, err
-	}
 	err = c.Register("player:tournament-registered", PlayerTournamentRegistered{})
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("player:games-played", PlayerGamePlayed{})
+
+	err = c.Register("tracker:created", TrackerCreated{})
 	if err != nil {
 		return nil, err
 	}
-	err = c.Register("player:game-won", PlayerGameWon{})
+	err = c.Register("tracker:game-played", TrackerGamePlayed{})
+	if err != nil {
+		return nil, err
+	}
+	err = c.Register("tracker:game-won", TrackerGameWon{})
+	if err != nil {
+		return nil, err
+	}
+	err = c.Register("tracker:match-played", TrackerMatchPlayed{})
+	if err != nil {
+		return nil, err
+	}
+	err = c.Register("tracker:match-won", TrackerMatchWon{})
 	if err != nil {
 		return nil, err
 	}

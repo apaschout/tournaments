@@ -30,7 +30,7 @@ func (s *Store) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT, matchesplayed INTEGER);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT);`)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (s *Store) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS registered_players (tournament TEXT, player TEXT, PRIMARY KEY (tournament, player));`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS participants (tournament TEXT, player TEXT, seat_index INTEGER, deck TEXT, matches INTEGER, games INTEGER, match_wins INTEGER, game_wins INTEGER, PRIMARY KEY (tournament, player));`)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (s *Store) init() error {
 
 func (s *Store) FindAllTournaments() ([]Tournament, error) {
 	result := []Tournament{}
-	query := "SELECT id, name, phase FROM tournaments"
+	query := "SELECT id, name FROM tournaments"
 	rows, err := s.db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -60,7 +60,7 @@ func (s *Store) FindAllTournaments() ([]Tournament, error) {
 	defer rows.Close()
 	for rows.Next() {
 		trn := Tournament{}
-		err = rows.Scan(&trn.ID, &trn.Name, &trn.Phase)
+		err = rows.Scan(&trn.ID, &trn.Name)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
@@ -72,7 +72,7 @@ func (s *Store) FindAllTournaments() ([]Tournament, error) {
 
 func (s *Store) FindTournamentByID(id TournamentID) (Tournament, error) {
 	result := Tournament{}
-	query := "SELECT id, name, phase, start, end, format, matches, games_to_win, deleted FROM tournaments WHERE id = ?"
+	query := "SELECT id, name, phase, start, end, format, matches, games_to_win, deleted FROM tournaments WHERE id = ?;"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -112,7 +112,7 @@ func (s *Store) FindAllPlayers() ([]Player, error) {
 
 func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	result := Player{}
-	query := "SELECT id, name, matchesplayed FROM Players WHERE id = ?"
+	query := "SELECT id, name FROM Players WHERE id = ?"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -120,7 +120,7 @@ func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name, &result.MatchesPlayed)
+		err = rows.Scan(&result.ID, &result.Name)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Player{}, err
@@ -298,7 +298,7 @@ func (s *Store) On(rec event.Record) {
 		})
 	case TournamentPlayerRegistered:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO registered_players (tournament, player) VALUES (?, ?);"
+			query := "INSERT INTO participants (tournament, player) VALUES (?, ?);"
 			_, err = t.Exec(query, e.Tournament, e.Player)
 			if err != nil {
 				return err
@@ -308,7 +308,7 @@ func (s *Store) On(rec event.Record) {
 		})
 	case TournamentPlayerDropped:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "DELETE FROM registered_players WHERE tournament = ? AND player = ?;"
+			query := "DELETE FROM participants WHERE tournament = ? AND player = ?;"
 			_, err = t.Exec(query, e.Tournament, e.Player)
 			if err != nil {
 				return err
@@ -384,16 +384,6 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: PlayerNameChanged")
-			return nil
-		})
-	case PlayerMatchPlayed:
-		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "UPDATE players SET matchesplayed = matchesplayed + 1 WHERE id = ?;"
-			_, err = t.Exec(query, e.Player)
-			if err != nil {
-				return err
-			}
-			log.Println("Projection: PlayerMatchesIncremented")
 			return nil
 		})
 	}

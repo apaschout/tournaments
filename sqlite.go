@@ -26,7 +26,7 @@ func (s *Store) init() error {
 		return err
 	}
 	s.db = db
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT, name TEXT, start TEXT, end TEXT, format TEXT, PRIMARY KEY (id));`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT, name TEXT, phase TEXT, start TEXT, end TEXT, format TEXT, matches BLOB, games_to_win INTEGER, deleted INTEGER, PRIMARY KEY (id));`)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (s *Store) init() error {
 
 func (s *Store) FindAllTournaments() ([]Tournament, error) {
 	result := []Tournament{}
-	query := "SELECT id, name FROM tournaments"
+	query := "SELECT id, name, phase FROM tournaments"
 	rows, err := s.db.Query(query)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -60,7 +60,7 @@ func (s *Store) FindAllTournaments() ([]Tournament, error) {
 	defer rows.Close()
 	for rows.Next() {
 		trn := Tournament{}
-		err = rows.Scan(&trn.ID, &trn.Name)
+		err = rows.Scan(&trn.ID, &trn.Name, &trn.Phase)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return nil, err
@@ -72,7 +72,7 @@ func (s *Store) FindAllTournaments() ([]Tournament, error) {
 
 func (s *Store) FindTournamentByID(id TournamentID) (Tournament, error) {
 	result := Tournament{}
-	query := "SELECT * FROM tournaments WHERE id = ?"
+	query := "SELECT id, name, phase, start, end, format, matches, games_to_win, deleted FROM tournaments WHERE id = ?"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -80,7 +80,7 @@ func (s *Store) FindTournamentByID(id TournamentID) (Tournament, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name, &result.Start, &result.End, &result.Format)
+		err = rows.Scan(&result.ID, &result.Name, &result.Phase, &result.Start, &result.End, &result.Format, &result.Matches, &result.GamesToWin, &result.Deleted)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Tournament{}, err
@@ -316,6 +316,56 @@ func (s *Store) On(rec event.Record) {
 			log.Println("Projection: TournamentPlayerDropped")
 			return nil
 		})
+	case TournamentFormatChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET format = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.Format, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentFormatChanged")
+			return nil
+		})
+	case TournamentPhaseChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET phase = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.Phase, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentPhaseChanged")
+			return nil
+		})
+	case TournamentStarted:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET start = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.Start, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentStarted")
+			return nil
+		})
+	case TournamentEnded:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET end = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.End, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentEnded")
+			return nil
+		})
+	case TournamentGamesToWinChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET games_to_win = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.GamesToWin, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentGamesToWinChanged")
+			return nil
+		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
 			query := "INSERT INTO players (id, name, matchesplayed) VALUES (?, ?, 0);"
@@ -346,6 +396,9 @@ func (s *Store) On(rec event.Record) {
 			log.Println("Projection: PlayerMatchesIncremented")
 			return nil
 		})
+	}
+	if err != nil {
+		log.Println(err)
 	}
 	err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
 		query := `INSERT OR REPLACE INTO metadata (key, value) VALUES ("version", ?)`

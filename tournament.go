@@ -112,7 +112,7 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := MakeDetailedTrnHyperItem(*trn, resolve)
+	res := trn.MakeDetailedHyperItem(resolve)
 	plrs, err := trn.MakeParticipantsHyperItem(resolve)
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)
@@ -397,151 +397,327 @@ func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper
 	return item
 }
 
-func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
-	item := hyper.Item{
+// func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
+// 	item := hyper.Item{
+// 		Label: trn.Name,
+// 		Type:  "tournament",
+// 		ID:    string(trn.ID),
+// 		Properties: []hyper.Property{
+// 			{
+// 				Label: "Name",
+// 				Name:  "name",
+// 				Value: trn.Name,
+// 			},
+// 			{
+// 				Label: "Version",
+// 				Name:  "version",
+// 				Value: trn.Version,
+// 			},
+// 			{
+// 				Label: "Phase",
+// 				Name:  "phase",
+// 				Value: trn.Phase,
+// 			},
+// 			{
+// 				Label: "Matches",
+// 				Name:  "matches",
+// 				Value: trn.Matches,
+// 			},
+// 			{
+// 				Label: "Start",
+// 				Name:  "start",
+// 				Value: trn.Start,
+// 			},
+// 			{
+// 				Label: "End",
+// 				Name:  "end",
+// 				Value: trn.End,
+// 			},
+// 			{
+// 				Label: "Format",
+// 				Name:  "format",
+// 				Value: trn.Format,
+// 			},
+// 			{
+// 				Label: "Games To Win",
+// 				Name:  "gamesToWin",
+// 				Value: trn.GamesToWin,
+// 			},
+// 		},
+// 	}
+// 	link := hyper.Link{
+// 		Rel:  "self",
+// 		Href: resolve("./%s", trn.ID).String(),
+// 	}
+// 	actions := hyper.Actions{
+// 		{
+// 			Label:  "Change Name",
+// 			Rel:    ActionChangeName,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name:        ArgumentName,
+// 					Placeholder: "New Name...",
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Label:  "Change Games To Win",
+// 			Rel:    ActionChangeGamesToWin,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name:        ArgumentGamesToWin,
+// 					Placeholder: "Games To Win...",
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Label:  "Change Format",
+// 			Rel:    ActionChangeFormat,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name:        ArgumentFormat,
+// 					Placeholder: "New Format...",
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Label:  "End Phase",
+// 			Rel:    ActionEndPhase,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 		},
+// 		{
+// 			Label:  "Delete",
+// 			Rel:    ActionDelete,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 		},
+// 		{
+// 			Label:  "Register Player",
+// 			Rel:    ActionRegisterPlayer,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name: ArgumentPlayerID,
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Label:  "Drop Player",
+// 			Rel:    ActionDropPlayer,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name: ArgumentPlayerID,
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Label:  "End Game",
+// 			Rel:    ActionEndGame,
+// 			Href:   resolve("./%s", trn.ID).String(),
+// 			Method: "POST",
+// 			Parameters: hyper.Parameters{
+// 				{
+// 					Name: ArgumentMatch,
+// 				},
+// 				{
+// 					Name: ArgumentGame,
+// 				},
+// 				{
+// 					Name: ArgumentPlayerID,
+// 				},
+// 				{
+// 					Name: ArgumentDraw,
+// 				},
+// 			},
+// 		},
+// 	}
+// 	item.AddActions(actions)
+// 	item.AddLink(link)
+// 	return item
+// }
+
+func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
+	res := hyper.Item{
 		Label: trn.Name,
 		Type:  "tournament",
 		ID:    string(trn.ID),
-		Properties: []hyper.Property{
-			{
-				Label: "Name",
-				Name:  "name",
-				Value: trn.Name,
-			},
-			{
-				Label: "Version",
-				Name:  "version",
-				Value: trn.Version,
-			},
-			{
-				Label: "Phase",
-				Name:  "phase",
-				Value: trn.Phase,
-			},
-			{
-				Label: "Matches",
-				Name:  "matches",
-				Value: trn.Matches,
-			},
-			{
-				Label: "Start",
-				Name:  "start",
-				Value: trn.Start,
-			},
-			{
-				Label: "End",
-				Name:  "end",
-				Value: trn.End,
-			},
-			{
-				Label: "Format",
-				Name:  "format",
-				Value: trn.Format,
-			},
-			{
-				Label: "Games To Win",
-				Name:  "gamesToWin",
-				Value: trn.GamesToWin,
-			},
-		},
 	}
-	link := hyper.Link{
-		Rel:  "self",
+	selfLink := hyper.Link{
+		Rel:  hyper.RelSelf,
 		Href: resolve("./%s", trn.ID).String(),
 	}
-	actions := hyper.Actions{
-		{
-			Label:  "Change Name",
-			Rel:    ActionChangeName,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name:        ArgumentName,
-					Placeholder: "New Name...",
-				},
-			},
-		},
-		{
-			Label:  "Change Games To Win",
-			Rel:    ActionChangeGamesToWin,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name:        ArgumentGamesToWin,
-					Placeholder: "Games To Win...",
-				},
-			},
-		},
-		{
-			Label:  "Change Format",
-			Rel:    ActionChangeFormat,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name:        ArgumentFormat,
-					Placeholder: "New Format...",
-				},
-			},
-		},
-		{
-			Label:  "End Phase",
-			Rel:    ActionEndPhase,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-		},
-		{
-			Label:  "Delete",
-			Rel:    ActionDelete,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-		},
-		{
-			Label:  "Register Player",
-			Rel:    ActionRegisterPlayer,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name: ArgumentPlayerID,
-				},
-			},
-		},
-		{
-			Label:  "Drop Player",
-			Rel:    ActionDropPlayer,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name: ArgumentPlayerID,
-				},
-			},
-		},
-		{
-			Label:  "End Game",
-			Rel:    ActionEndGame,
-			Href:   resolve("./%s", trn.ID).String(),
-			Method: "POST",
-			Parameters: hyper.Parameters{
-				{
-					Name: ArgumentMatch,
-				},
-				{
-					Name: ArgumentGame,
-				},
-				{
-					Name: ArgumentPlayerID,
-				},
-				{
-					Name: ArgumentDraw,
-				},
+	//Properties
+	nameProp := hyper.Property{
+		Label: "Name",
+		Name:  "name",
+		Value: trn.Name,
+	}
+	phaseProp := hyper.Property{
+		Label: "Phase",
+		Name:  "phase",
+		Value: trn.Phase,
+	}
+	matchesProp := hyper.Property{
+		Label: "Matches",
+		Name:  "matches",
+		Value: trn.Matches,
+	}
+	startProp := hyper.Property{
+		Label: "Start",
+		Name:  "start",
+		Value: trn.Start,
+	}
+	endProp := hyper.Property{
+		Label: "End",
+		Name:  "end",
+		Value: trn.End,
+	}
+	formatProp := hyper.Property{
+		Label: "Format",
+		Name:  "format",
+		Value: trn.Format,
+	}
+	g2wProp := hyper.Property{
+		Label: "Games To Win",
+		Name:  "gamesToWin",
+		Value: trn.GamesToWin,
+	}
+	//Actions
+	nameAct := hyper.Action{
+		Label:  "Change Name",
+		Rel:    ActionChangeName,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name:        ArgumentName,
+				Placeholder: "New Name...",
 			},
 		},
 	}
-	item.AddActions(actions)
-	item.AddLink(link)
-	return item
+	g2wAct := hyper.Action{
+		Label:  "Change Games To Win",
+		Rel:    ActionChangeGamesToWin,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name:        ArgumentGamesToWin,
+				Placeholder: "Games To Win...",
+			},
+		},
+	}
+	formatAct := hyper.Action{
+		Label:  "Change Format",
+		Rel:    ActionChangeFormat,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name:        ArgumentFormat,
+				Placeholder: "New Format...",
+			},
+		},
+	}
+	phaseAct := hyper.Action{
+		Label:  "End Phase",
+		Rel:    ActionEndPhase,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+	}
+	deleteAct := hyper.Action{
+		Label:  "Delete",
+		Rel:    ActionDelete,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+	}
+	registerAct := hyper.Action{
+		Label:  "Register Player",
+		Rel:    ActionRegisterPlayer,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name: ArgumentPlayerID,
+			},
+		},
+	}
+	dropAct := hyper.Action{
+		Label:  "Drop Player",
+		Rel:    ActionDropPlayer,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name: ArgumentPlayerID,
+			},
+		},
+	}
+	endGameAct := hyper.Action{
+		Label:  "End Game",
+		Rel:    ActionEndGame,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name: ArgumentMatch,
+			},
+			{
+				Name: ArgumentGame,
+			},
+			{
+				Name: ArgumentPlayerID,
+			},
+			{
+				Name: ArgumentDraw,
+			},
+		},
+	}
+
+	res.AddLink(selfLink)
+	res.AddProperty(nameProp)
+	res.AddProperty(phaseProp)
+	res.AddAction(deleteAct)
+	switch trn.Phase {
+	case PhaseInitialization:
+		res.AddProperty(formatProp)
+		res.AddProperty(g2wProp)
+
+		res.AddAction(formatAct)
+		res.AddAction(nameAct)
+		res.AddAction(g2wAct)
+		res.AddAction(phaseAct)
+	case PhaseRegistration:
+		res.AddProperty(formatProp)
+		res.AddAction(registerAct)
+		res.AddAction(dropAct)
+		res.AddAction(phaseAct)
+	case PhaseDraft:
+		res.AddProperty(formatProp)
+		res.AddProperty(startProp)
+		res.AddAction(phaseAct)
+	case PhaseRounds:
+		res.AddProperty(matchesProp)
+
+		res.AddAction(endGameAct)
+		res.AddAction(phaseAct)
+	case PhaseEnded:
+		res.AddProperty(formatProp)
+		res.AddProperty(g2wProp)
+		res.AddProperty(matchesProp)
+		res.AddProperty(startProp)
+		res.AddProperty(endProp)
+	}
+
+	return res
 }

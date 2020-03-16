@@ -368,7 +368,7 @@ func (s *Store) On(rec event.Record) {
 		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id, name, matchesplayed) VALUES (?, ?, 0);"
+			query := "INSERT INTO players (id, name) VALUES (?, ?);"
 			_, err = t.Exec(query, e.Player, e.Player)
 			if err != nil {
 				return err

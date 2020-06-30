@@ -72,6 +72,11 @@ const (
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+	err = s.authenticate(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		return
+	}
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Tournaments",
@@ -103,6 +108,11 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+	err = s.authenticate(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		return
+	}
 	resolve := hyper.ExternalURLResolver(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
@@ -131,6 +141,11 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+	err = s.authenticate(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		return
+	}
 	cmd := hyper.ExtractCommand(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
@@ -203,6 +218,11 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+	err = s.authenticate(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		return
+	}
 	cmd := hyper.ExtractCommand(r)
 	switch cmd.Action {
 	case ActionCreate:
@@ -214,7 +234,7 @@ func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 		}
 		err = trn.Save(s.es, nil)
 	default:
-		err = fmt.Errorf("Action not recognized")
+		err = fmt.Errorf("Action not recognized: %s", cmd.Action)
 	}
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, isHtmlReq)

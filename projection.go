@@ -21,6 +21,8 @@ type PlayerRepository interface {
 	FindPlayerByID(id PlayerID) (Player, error)
 	IsPlayerNameAvailable(name string) (bool, error)
 	PlayerExists(id PlayerID) (bool, error)
+	IsMailAvailable(mail string) (bool, error)
+	FindCredentialsByMail(mail string) (Credentials, PlayerID, error)
 }
 
 type DeckRepository interface {

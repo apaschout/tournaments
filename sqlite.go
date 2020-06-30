@@ -30,7 +30,7 @@ func (s *Store) init() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT);`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT, mail TEXT, pw TEXT, role TEXT);`)
 	if err != nil {
 		return err
 	}
@@ -129,6 +129,26 @@ func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	return result, nil
 }
 
+func (s *Store) FindCredentialsByMail(mail string) (Credentials, PlayerID, error) {
+	result := Credentials{}
+	var pID PlayerID
+	query := "SELECT mail, pw, id FROM Players WHERE mail = ?;"
+	rows, err := s.db.Query(query, mail)
+	if err != nil {
+		err = fmt.Errorf("Query: %v", err)
+		return result, pID, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&result.Mail, &result.Password, &pID)
+		if err != nil {
+			err = fmt.Errorf("Scan: %v", err)
+			return Credentials{}, pID, err
+		}
+	}
+	return result, pID, nil
+}
+
 func (s *Store) FindAllDecks() ([]Deck, error) {
 	result := []Deck{}
 	query := "SELECT * FROM Decks ;"
@@ -199,6 +219,29 @@ func (s *Store) PlayerExists(ID PlayerID) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (s *Store) IsMailAvailable(mail string) (bool, error) {
+	err = s.checkMail(mail)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *Store) checkMail(mail string) error {
+	query := "SELECT 0 FROM Players WHERE mail = ?;"
+
+	rows, err := s.db.Query(query, mail)
+	if err != nil {
+		err = fmt.Errorf("Checking for Mail existence: %v", err)
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return fmt.Errorf("Mail already exists")
+	}
+	return nil
 }
 
 //throws error if ID does not exist
@@ -368,8 +411,8 @@ func (s *Store) On(rec event.Record) {
 		})
 	case PlayerCreated:
 		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
-			query := "INSERT INTO players (id, name) VALUES (?, ?);"
-			_, err = t.Exec(query, e.Player, e.Player)
+			query := "INSERT INTO players (id, name, mail, pw, role) VALUES (?, ?, ?, ?, ?);"
+			_, err = t.Exec(query, e.Player, e.Player, e.Mail, e.Password, e.Role)
 			if err != nil {
 				return err
 			}

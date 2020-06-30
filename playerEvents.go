@@ -13,6 +13,9 @@ type PlayerCreated struct {
 	ID         string    `json:"id"`
 	OccurredOn time.Time `json:"occured-on"`
 	Player     PlayerID  `json:"player"`
+	Mail       string    `json:"mail"`
+	Password   string    `json:"password"`
+	Role       string    `json:"role"`
 	Tracker    TrackerID `json:"tracker"`
 }
 
@@ -37,7 +40,7 @@ func NewPlayer(s *Server) *Player {
 	}
 }
 
-func (plr *Player) Create(id PlayerID, tracker TrackerID) error {
+func (plr *Player) Create(id PlayerID, tracker TrackerID, role string, mail string, password string) error {
 	if plr.ID != "" {
 		return fmt.Errorf("Player already exists")
 	}
@@ -48,6 +51,9 @@ func (plr *Player) Create(id PlayerID, tracker TrackerID) error {
 		ID:         uuid.MakeV4(),
 		OccurredOn: time.Now().UTC(),
 		Player:     id,
+		Mail:       mail,
+		Password:   password,
+		Role:       role,
 		Tracker:    tracker,
 	})
 	trk := NewTracker()

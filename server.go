@@ -8,6 +8,8 @@ import (
 	"github.com/cognicraft/event"
 	"github.com/cognicraft/hyper"
 	"github.com/cognicraft/mux"
+	"github.com/cognicraft/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -52,6 +54,33 @@ func (s *Server) init() {
 	sub := s.es.SubscribeToStreamFrom(event.All, s.p.GetVersion())
 	sub.On(s.p.On)
 
+	//create admin player if server is newly set up
+	if s.es.Version(event.All) == 0 {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPw), 8)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		a := NewPlayer(s)
+		ID := PlayerID(uuid.MakeV4())
+		tID := TrackerID(uuid.MakeV4())
+		err = a.Create(ID, tID, "admin", string(hashedPassword), "admin")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		err = a.ChangeName("admin")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		err = a.Save(s.es, nil)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
+
 	chain := mux.NewChain(
 		mux.CORS(mux.AccessControlDefaults),
 		mux.GZIP,
@@ -59,6 +88,12 @@ func (s *Server) init() {
 	s.router.Route("/").GET(chain.ThenFunc(s.handleGETIndex))
 
 	s.router.Route("/api/").GET(chain.ThenFunc(s.handleGETAPI))
+
+	s.router.Route("/api/signup").POST(chain.ThenFunc(s.handleSignUp))
+	s.router.Route("/api/signup").GET(chain.ThenFunc(s.handleGETSignUp))
+	s.router.Route("/api/signin").POST(chain.ThenFunc(s.handleSignIn))
+	s.router.Route("/api/signin").GET(chain.ThenFunc(s.handleGETSignIn))
+	s.router.Route("/api/refresh").POST(chain.ThenFunc(s.refresh))
 
 	s.router.Route("/api/tournaments/").GET(chain.ThenFunc(s.handleGETTournaments))
 	s.router.Route("/api/tournaments/:id").GET(chain.ThenFunc(s.handleGETTournament))
@@ -70,7 +105,7 @@ func (s *Server) init() {
 	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
 	s.router.Route("/api/players/:id").POST(chain.ThenFunc(s.handlePOSTPlayer))
-	s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
+	// s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
 
 	s.router.Route("/api/trackers/:id").GET(chain.ThenFunc(s.HandleGETTracker))
 

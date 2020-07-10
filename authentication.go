@@ -3,6 +3,7 @@ package tournaments
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cognicraft/uuid"
@@ -59,7 +60,7 @@ func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
 	plr := NewPlayer(s)
 	ID := PlayerID(uuid.MakeV4())
 	tID := TrackerID(uuid.MakeV4())
-	err = plr.Create(ID, tID, creds.Mail, string(hashedPassword), "player")
+	err = plr.Create(ID, tID, "player", creds.Mail, string(hashedPassword))
 	if err != nil {
 		handleError(w, http.StatusInternalServerError, err, false)
 		return
@@ -96,6 +97,7 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	}
 	if err = bcrypt.CompareHashAndPassword([]byte(storedCreds.Password), []byte(creds.Password)); err != nil {
 		handleError(w, http.StatusUnauthorized, err, false)
+		fmt.Println(storedCreds.Password)
 		return
 	}
 
@@ -121,10 +123,77 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/api/tournaments/", http.StatusSeeOther)
 }
 
-func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) authentication(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		isHTMLReq := strings.Contains(r.Header.Get("Accept"), "text/html")
+		c, err := r.Cookie("token")
+		if err != nil {
+			handleError(w, http.StatusUnauthorized, err, isHTMLReq)
+			return
+		}
+
+		tknStr := c.Value
+		claims := &Claims{}
+		tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil {
+			handleError(w, http.StatusUnauthorized, err, isHTMLReq)
+			return
+		}
+		if !tkn.Valid {
+			handleError(w, http.StatusUnauthorized, fmt.Errorf("Token invalid"), isHTMLReq)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) refreshToken(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie("token")
+		if err != nil {
+			h.ServeHTTP(w, r)
+			return
+		}
+		tknStr := c.Value
+		claims := &Claims{}
+		_, err = jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil {
+			h.ServeHTTP(w, r)
+			return
+		}
+		fmt.Println(time.Until(time.Unix(claims.ExpiresAt, 0)))
+		//if token expires in >5min, skip refreshing
+		if time.Until(time.Unix(claims.ExpiresAt, 0)) > 5*time.Minute {
+			h.ServeHTTP(w, r)
+			return
+		}
+		expirationTime := time.Now().Add(15 * time.Minute)
+		claims.ExpiresAt = expirationTime.Unix()
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString(jwtKey)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err, true)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:    "token",
+			Value:   tokenString,
+			Path:    "/api",
+			Expires: expirationTime,
+		})
+		fmt.Println("refreshed jwt")
+		h.ServeHTTP(w, r)
+	})
+}
+func (s *Server) authenticate(r *http.Request) (PlayerID, error) {
 	c, err := r.Cookie("token")
 	if err != nil {
-		return fmt.Errorf("Unauthorized")
+		return "", fmt.Errorf("Unauthorized")
 	}
 
 	tknStr := c.Value
@@ -134,24 +203,57 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) error {
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
-	fmt.Println(tkn.Claims)
 	if err != nil {
-		return fmt.Errorf("Unauthorized")
+		return "", fmt.Errorf("Unauthorized")
 	}
 	if !tkn.Valid {
-		return fmt.Errorf("token invalid")
+		return "", fmt.Errorf("token invalid")
+	}
+	return claims.ID, nil
+}
+
+func (s *Server) checkAdminPermissions(accID PlayerID, errMsg string) error {
+	acc, err := s.p.FindPlayerByID(accID)
+	if err != nil {
+		return err
+	}
+	if acc.Role != "admin" {
+		return fmt.Errorf(errMsg)
+	}
+	return nil
+}
+
+func (s *Server) checkOrganizerPermissions(accID PlayerID, errMsg string) error {
+	acc, err := s.p.FindPlayerByID(accID)
+	if err != nil {
+		return err
+	}
+	if acc.Role != "admin" && acc.Role != "organizer" {
+		return fmt.Errorf(errMsg)
+	}
+	return nil
+}
+
+func (s *Server) checkPlayerPermissions(accID, pID PlayerID) error {
+	acc, err := s.p.FindPlayerByID(accID)
+	if err != nil {
+		return err
+	}
+	if acc.Role != "admin" && acc.ID != pID {
+		return fmt.Errorf("Unable to edit Player: Insufficient Permissions")
 	}
 	return nil
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
-	err = s.authenticate(w, r)
+	pID, err := s.authenticate(r)
+	fmt.Println(pID)
 	if err != nil {
 		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 		return
 	}
 	claims := &Claims{}
-	expirationTime := time.Now().Add(5 * time.Minute)
+	expirationTime := time.Now().Add(15 * time.Minute)
 	claims.ExpiresAt = expirationTime.Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)

@@ -12,9 +12,18 @@
 </head>
 
 <body>
-    <h1 class="heading">
-        <a href="/api/players/">Players</a>
-    </h1>
+    <div class="flex-container" style="justify-content: space-between;">
+        <h1 class="heading">
+            <a href="/api/players/">Players</a>
+        </h1>
+        <div class="neon-button-red w3-margin-left" onclick="deleteTokenCookie();">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            LOGOUT
+        </div>
+    </div>
     <div class="w3-bar w3-dark-gray w3-center">
         <a href="/api/tournaments/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Tournaments</a>
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
@@ -26,9 +35,11 @@
         <li class="w3-hover-gray" onclick='window.location.href="{{details .}}"' style="cursor:pointer">{{.Label}}</li>
         {{end}}
     </ul>
-    <form class="w3-margin-top" id="form-create" action="/api/players/" method="POST" style="display:flex; align-items: center; justify-content: center;">
+    <form class="w3-margin-top" id="form-create" action="/api/players/" method="POST"
+        style="display:flex; align-items: center; justify-content: center;">
         <input type="hidden" name="@action" value="create">
-        <div class="neon-button-green" style="font-size: 18px;" onclick='document.getElementById("form-create").submit()'>
+        <div class="neon-button-green" style="font-size: 18px;"
+            onclick='document.getElementById("form-create").submit()'>
             <span></span>
             <span></span>
             <span></span>

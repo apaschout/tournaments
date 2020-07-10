@@ -36,11 +36,11 @@ func (trn *Tournament) MakeMatches() {
 
 	for round := 0; round < numRounds; round++ {
 		plrIdx := round % plrsLen
-		matches = append(matches, Match{Player1: plrs[0], Player2: withoutFirst[plrIdx], Games: []Game{Game{}}})
+		matches = append(matches, Match{Player1: plrs[0], Player2: withoutFirst[plrIdx], Games: []Game{{}}})
 		for i := 1; i < halfSize; i++ {
 			plr1 := (round + plrsLen - i) % plrsLen
 			plr2 := (round + i) % plrsLen
-			matches = append(matches, Match{Player1: withoutFirst[plr1], Player2: withoutFirst[plr2], Games: []Game{Game{}}})
+			matches = append(matches, Match{Player1: withoutFirst[plr1], Player2: withoutFirst[plr2], Games: []Game{{}}})
 		}
 	}
 	trn.Matches = deleteDummyMatches(matches)

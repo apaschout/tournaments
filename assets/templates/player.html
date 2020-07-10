@@ -12,10 +12,19 @@
 </head>
 
 <body>
-    <h1 class="heading">
-        <a href="/api/players/">Players</a> >
-        <a href="/api/players/{{.ID}}">{{.ID}}</a>
-    </h1>
+    <div class="flex-container" style="justify-content: space-between;">
+        <h1 class="heading">
+            <a href="/api/players/">Players</a>
+            <a href="/api/players/{{.ID}}">>{{.ID}}</a>
+        </h1>
+        <div class="neon-button-red w3-margin-left" onclick="deleteTokenCookie();">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            LOGOUT
+        </div>
+    </div>
     <div class="w3-bar w3-dark-gray w3-center">
         <a href="/api/tournaments/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Tournaments</a>
         <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
@@ -40,8 +49,15 @@
                 <h2 class="w3-center">{{.Label}}</h2>
                 <input type="hidden" name="@action" value="{{.Rel}}">
                 {{range .Parameters}}
+                {{if eq .Name "role"}}
+                <select class="w4-margin-bottom w3-center" style="width: 30%;margin:auto;" name="{{.Name}}">
+                    <option value="organizer">Tournament Organizer</option>
+                    <option value="player">Player</option>
+                </select>
+                {{else}}
                 <input class="w3-margin-bottom w3-center" style="width: 30%;margin:auto;" type="text" name="{{.Name}}"
                     placeholder="{{.Placeholder}}" autocomplete="off">
+                {{end}}
                 {{end}}
                 <div class="neon-button w3-margin-bottom" onclick='document.getElementById("form-{{.Rel}}").submit()'>
                     <span></span>

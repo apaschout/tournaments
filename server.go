@@ -64,7 +64,7 @@ func (s *Server) init() {
 		a := NewPlayer(s)
 		ID := PlayerID(uuid.MakeV4())
 		tID := TrackerID(uuid.MakeV4())
-		err = a.Create(ID, tID, "admin", string(hashedPassword), "admin")
+		err = a.Create(ID, tID, "admin", "admin", string(hashedPassword))
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -84,6 +84,7 @@ func (s *Server) init() {
 	chain := mux.NewChain(
 		mux.CORS(mux.AccessControlDefaults),
 		mux.GZIP,
+		s.refreshToken,
 	)
 	s.router.Route("/").GET(chain.ThenFunc(s.handleGETIndex))
 

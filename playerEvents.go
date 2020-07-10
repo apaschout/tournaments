@@ -26,6 +26,13 @@ type PlayerNameChanged struct {
 	Name       string    `json:"name"`
 }
 
+type PlayerRoleChanged struct {
+	ID         string    `json:"id"`
+	OccurredOn time.Time `json:"occurred-on"`
+	Player     PlayerID  `json:"player"`
+	Role       string    `json:"role"`
+}
+
 type PlayerTournamentRegistered struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
@@ -89,6 +96,26 @@ func (plr *Player) ChangeName(name string) error {
 	return nil
 }
 
+func (plr *Player) ChangeRole(role string) error {
+	if plr.ID == "" {
+		return fmt.Errorf("Player does not exist")
+	}
+	if role == "" {
+		return fmt.Errorf("A Player's role may not be empty")
+	}
+	if plr.Role == role {
+		return nil
+	}
+	plr.Apply(PlayerRoleChanged{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Player:     plr.ID,
+		Role:       role,
+	})
+	log.Printf("Event: Player %s: Role Changed To %s\n", plr.ID, role)
+	return nil
+}
+
 func (plr *Player) RegisterTournament(tID TournamentID) error {
 	if plr.ID == "" {
 		return fmt.Errorf("Player does not exist")
@@ -118,8 +145,13 @@ func (plr *Player) Mutate(e event.Event) {
 		plr.ID = e.Player
 		plr.Name = string(e.Player)
 		plr.Tracker = e.Tracker
+		plr.Role = e.Role
+		plr.Mail = e.Mail
+		plr.Password = e.Password
 	case PlayerNameChanged:
 		plr.Name = e.Name
+	case PlayerRoleChanged:
+		plr.Role = e.Role
 	case PlayerTournamentRegistered:
 		plr.Tournaments = append(plr.Tournaments, e.Tournament)
 	}

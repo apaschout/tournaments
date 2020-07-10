@@ -25,9 +25,15 @@ type Player struct {
 
 type PlayerID string
 
+const (
+	ActionChangeName = "change-name"
+	ActionChangeRole = "change-role"
+)
+
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	err = s.authenticate(w, r)
+	aID, err := s.authenticate(r)
+	fmt.Println(aID)
 	if err != nil {
 		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 		return
@@ -63,7 +69,8 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	err = s.authenticate(w, r)
+	aID, err := s.authenticate(r)
+	fmt.Println(aID)
 	if err != nil {
 		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 		return
@@ -89,13 +96,18 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	err = s.authenticate(w, r)
+	accID, err := s.authenticate(r)
 	if err != nil {
 		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 		return
 	}
-	cmd := hyper.ExtractCommand(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
+	err = s.checkPlayerPermissions(accID, pID)
+	if err != nil {
+		handleError(w, http.StatusForbidden, err, isHtmlReq)
+		return
+	}
+	cmd := hyper.ExtractCommand(r)
 
 	plr, err := LoadPlayer(s, pID)
 	if err != nil {
@@ -111,6 +123,18 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = plr.ChangeName(newName)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
+			return
+		}
+	case ActionChangeRole:
+		newRole := cmd.Arguments.String(ArgumentRole)
+		err = s.checkAdminPermissions(accID, "Unable to change Role: Insufficient Permissions")
+		if err != nil {
+			handleError(w, http.StatusForbidden, err, isHtmlReq)
+			return
+		}
+		err = plr.ChangeRole(newRole)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
 			return
@@ -192,6 +216,11 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 				Value: plr.Name,
 			},
 			{
+				Label: "Role",
+				Name:  "role",
+				Value: plr.Role,
+			},
+			{
 				Label: "Tournaments",
 				Name:  "tournaments",
 				Value: plr.Tournaments,
@@ -213,6 +242,17 @@ func (plr *Player) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 				{
 					Name:        ArgumentName,
 					Placeholder: "New Name...",
+				},
+			},
+		},
+		{
+			Label:  "Change Role",
+			Rel:    ActionChangeRole,
+			Href:   resolve("./%s", plr.ID).String(),
+			Method: "POST",
+			Parameters: hyper.Parameters{
+				{
+					Name: ArgumentRole,
 				},
 			},
 		},

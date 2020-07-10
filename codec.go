@@ -65,6 +65,10 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.Register("player:role-changed", PlayerRoleChanged{})
+	if err != nil {
+		return nil, err
+	}
 	err = c.Register("player:tournament-registered", PlayerTournamentRegistered{})
 	if err != nil {
 		return nil, err

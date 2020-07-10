@@ -14,14 +14,15 @@
 <body>
     <div class="w3-container w3-dark-gray w3-margin-top" style="width:50%; margin:auto; margin-top:10%;">
         <h4 class="w3-center">sign up</h4>
-        <form id="form-signup" action="/api/signup" method="POST"
-            style="justify-content: flex-start;">
+        <form id="form-signup" action="/api/signup" method="POST" style="justify-content: flex-start;">
             <input class="w3-margin-top w3-margin-bottom" type="text" name="mail" placeholder="Mail" autocomplete="off"
                 style="width: 40%;" required><br>
             <input class="w3-margin-top w3-margin-bottom" type="text" name="username" placeholder="Username"
                 autocomplete="off" style="width: 40%;" required><br>
             <input class="w3-margin-top w3-margin-bottom" type="password" name="password" placeholder="Password"
                 autocomplete="off" style="width: 40%;" required><br>
+            <a href="/api/signin" style="color:#87CEEB;">Already have an Account? Log In!</a>
+            <br>
             <div class="neon-button w3-margin-left" onclick='document.getElementById("form-signup").submit()'>
                 <span></span>
                 <span></span>

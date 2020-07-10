@@ -112,7 +112,7 @@ func (s *Store) FindAllPlayers() ([]Player, error) {
 
 func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	result := Player{}
-	query := "SELECT id, name FROM Players WHERE id = ?"
+	query := "SELECT id, name, role FROM Players WHERE id = ?"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		err = fmt.Errorf("Query: %v", err)
@@ -120,7 +120,7 @@ func (s *Store) FindPlayerByID(id PlayerID) (Player, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&result.ID, &result.Name)
+		err = rows.Scan(&result.ID, &result.Name, &result.Role)
 		if err != nil {
 			err = fmt.Errorf("Scan: %v", err)
 			return Player{}, err
@@ -427,6 +427,16 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: PlayerNameChanged")
+			return nil
+		})
+	case PlayerRoleChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE players SET role = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.Role, e.Player)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: PlayerRoleChanged")
 			return nil
 		})
 	}

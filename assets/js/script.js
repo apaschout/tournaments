@@ -23,6 +23,11 @@ function isValidDate(d) {
     return d instanceof Date && !isNaN(d);
 }
 
+function deleteTokenCookie() {
+    document.cookie = "token" + '=; Path=/api; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    location.reload();
+}
+
 function loadPlayers() {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = () => {

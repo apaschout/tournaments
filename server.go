@@ -86,6 +86,12 @@ func (s *Server) init() {
 		mux.GZIP,
 		s.refreshToken,
 	)
+	aChain := mux.NewChain(
+		mux.CORS(mux.AccessControlDefaults),
+		mux.GZIP,
+		s.authentication,
+		s.refreshToken,
+	)
 	s.router.Route("/").GET(chain.ThenFunc(s.handleGETIndex))
 
 	s.router.Route("/api/").GET(chain.ThenFunc(s.handleGETAPI))
@@ -94,25 +100,23 @@ func (s *Server) init() {
 	s.router.Route("/api/signup").GET(chain.ThenFunc(s.handleGETSignUp))
 	s.router.Route("/api/signin").POST(chain.ThenFunc(s.handleSignIn))
 	s.router.Route("/api/signin").GET(chain.ThenFunc(s.handleGETSignIn))
-	s.router.Route("/api/refresh").POST(chain.ThenFunc(s.refresh))
 
-	s.router.Route("/api/tournaments/").GET(chain.ThenFunc(s.handleGETTournaments))
-	s.router.Route("/api/tournaments/:id").GET(chain.ThenFunc(s.handleGETTournament))
-	s.router.Route("/api/tournaments/:id").POST(chain.ThenFunc(s.handlePOSTTournament))
-	s.router.Route("/api/tournaments/").POST(chain.ThenFunc(s.handlePOSTTournaments))
+	s.router.Route("/api/tournaments/").GET(aChain.ThenFunc(s.handleGETTournaments))
+	s.router.Route("/api/tournaments/:id").GET(aChain.ThenFunc(s.handleGETTournament))
+	s.router.Route("/api/tournaments/:id").POST(aChain.ThenFunc(s.handlePOSTTournament))
+	s.router.Route("/api/tournaments/").POST(aChain.ThenFunc(s.handlePOSTTournaments))
 
-	s.router.Route("/api/standings/:id").GET(chain.ThenFunc(s.handleGETStandings))
+	s.router.Route("/api/standings/:id").GET(aChain.ThenFunc(s.handleGETStandings))
 
-	s.router.Route("/api/players/").GET(chain.ThenFunc(s.handleGETPlayers))
-	s.router.Route("/api/players/:id").GET(chain.ThenFunc(s.handleGETPlayer))
-	s.router.Route("/api/players/:id").POST(chain.ThenFunc(s.handlePOSTPlayer))
-	// s.router.Route("/api/players/").POST(chain.ThenFunc(s.handlePOSTPlayers))
+	s.router.Route("/api/players/").GET(aChain.ThenFunc(s.handleGETPlayers))
+	s.router.Route("/api/players/:id").GET(aChain.ThenFunc(s.handleGETPlayer))
+	s.router.Route("/api/players/:id").POST(aChain.ThenFunc(s.handlePOSTPlayer))
 
-	s.router.Route("/api/trackers/:id").GET(chain.ThenFunc(s.HandleGETTracker))
+	s.router.Route("/api/trackers/:id").GET(aChain.ThenFunc(s.HandleGETTracker))
 
-	s.router.Route("/api/decks/").GET(chain.ThenFunc(s.handleGETDecks))
-	s.router.Route("/api/decks/:id").GET(chain.ThenFunc(s.handleGetDeck))
-	s.router.Route("/api/decks/").POST(chain.ThenFunc(s.handlePOSTDecks))
+	s.router.Route("/api/decks/").GET(aChain.ThenFunc(s.handleGETDecks))
+	s.router.Route("/api/decks/:id").GET(aChain.ThenFunc(s.handleGetDeck))
+	s.router.Route("/api/decks/").POST(aChain.ThenFunc(s.handlePOSTDecks))
 
 	s.router.Route("/js/:file").GET(http.StripPrefix("/js/", http.FileServer(http.Dir("./assets/js"))))
 	s.router.Route("/css/:file").GET(http.StripPrefix("/css/", http.FileServer(http.Dir("./assets/css"))))

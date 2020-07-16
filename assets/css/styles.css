@@ -68,6 +68,9 @@ html {
 /* blue button */
 .neon-button {
     display: block;
+    background-color: transparent;
+    border: none;
+    outline: none;
     width: max-content;
     position: relative;
     padding: 6px 12px;

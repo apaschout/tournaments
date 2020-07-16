@@ -32,12 +32,6 @@ const (
 
 func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	aID, err := s.authenticate(r)
-	fmt.Println(aID)
-	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
-		return
-	}
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Players",
@@ -69,12 +63,6 @@ func (s *Server) handleGETPlayers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	aID, err := s.authenticate(r)
-	fmt.Println(aID)
-	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
-		return
-	}
 	resolve := hyper.ExternalURLResolver(r)
 	pID := PlayerID(r.Context().Value(":id").(string))
 	plr, err := LoadPlayer(s, pID)
@@ -96,9 +84,9 @@ func (s *Server) handleGETPlayer(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	accID, err := s.authenticate(r)
+	accID, err := s.getAccountID(r)
 	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		handleError(w, http.StatusBadRequest, err, isHtmlReq)
 		return
 	}
 	pID := PlayerID(r.Context().Value(":id").(string))
@@ -155,33 +143,6 @@ func (s *Server) handlePOSTPlayer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
-
-// func (s *Server) handlePOSTPlayers(w http.ResponseWriter, r *http.Request) {
-// 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-// 	cmd := hyper.ExtractCommand(r)
-// 	switch cmd.Action {
-// 	case ActionCreate:
-// 		plr := NewPlayer(s)
-// 		err = plr.Create(PlayerID(uuid.MakeV4()), TrackerID(uuid.MakeV4()))
-// 		if err != nil {
-// 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-// 			return
-// 		}
-// 		err = plr.Save(s.es, nil)
-// 		if err != nil {
-// 			handleError(w, http.StatusInternalServerError, err, isHtmlReq)
-// 			return
-// 		}
-// 	default:
-// 		handleError(w, http.StatusInternalServerError, fmt.Errorf("Action not recognized"), isHtmlReq)
-// 		return
-// 	}
-// 	if strings.Contains(r.Header.Get("Accept"), "text/html") {
-// 		http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
-// 	} else {
-// 		w.WriteHeader(http.StatusNoContent)
-// 	}
-// }
 
 func (plr *Player) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	item := hyper.Item{

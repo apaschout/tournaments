@@ -72,12 +72,6 @@ const (
 
 func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	aID, err := s.authenticate(r)
-	fmt.Println(aID)
-	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
-		return
-	}
 	resolve := hyper.ExternalURLResolver(r)
 	res := hyper.Item{
 		Label: "Tournaments",
@@ -109,12 +103,6 @@ func (s *Server) handleGETTournaments(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	aID, err := s.authenticate(r)
-	fmt.Println(aID)
-	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
-		return
-	}
 	resolve := hyper.ExternalURLResolver(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
 
@@ -143,9 +131,9 @@ func (s *Server) handleGETTournament(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	accID, err := s.authenticate(r)
+	accID, err := s.getAccountID(r)
 	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		handleError(w, http.StatusBadRequest, err, isHtmlReq)
 		return
 	}
 	err = s.checkOrganizerPermissions(accID, "Unable to edit Tournament: Insufficient Permissions")
@@ -225,9 +213,9 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePOSTTournaments(w http.ResponseWriter, r *http.Request) {
 	isHtmlReq := strings.Contains(r.Header.Get("Accept"), "text/html")
-	accID, err := s.authenticate(r)
+	accID, err := s.getAccountID(r)
 	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
+		handleError(w, http.StatusBadRequest, err, isHtmlReq)
 		return
 	}
 	err = s.checkOrganizerPermissions(accID, "Unable to create Tournament: Insufficient Permissions")

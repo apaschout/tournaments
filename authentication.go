@@ -128,7 +128,7 @@ func (s *Server) authentication(h http.Handler) http.Handler {
 		isHTMLReq := strings.Contains(r.Header.Get("Accept"), "text/html")
 		c, err := r.Cookie("token")
 		if err != nil {
-			handleError(w, http.StatusUnauthorized, err, isHTMLReq)
+			http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 			return
 		}
 
@@ -142,7 +142,7 @@ func (s *Server) authentication(h http.Handler) http.Handler {
 			return
 		}
 		if !tkn.Valid {
-			handleError(w, http.StatusUnauthorized, fmt.Errorf("Token invalid"), isHTMLReq)
+			http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
 			return
 		}
 		h.ServeHTTP(w, r)
@@ -165,7 +165,6 @@ func (s *Server) refreshToken(h http.Handler) http.Handler {
 			h.ServeHTTP(w, r)
 			return
 		}
-		fmt.Println(time.Until(time.Unix(claims.ExpiresAt, 0)))
 		//if token expires in >5min, skip refreshing
 		if time.Until(time.Unix(claims.ExpiresAt, 0)) > 5*time.Minute {
 			h.ServeHTTP(w, r)
@@ -186,28 +185,25 @@ func (s *Server) refreshToken(h http.Handler) http.Handler {
 			Path:    "/api",
 			Expires: expirationTime,
 		})
-		fmt.Println("refreshed jwt")
 		h.ServeHTTP(w, r)
 	})
 }
-func (s *Server) authenticate(r *http.Request) (PlayerID, error) {
+
+func (s *Server) getAccountID(r *http.Request) (PlayerID, error) {
 	c, err := r.Cookie("token")
 	if err != nil {
-		return "", fmt.Errorf("Unauthorized")
+		return "", fmt.Errorf("Unable to get Cookie")
 	}
 
 	tknStr := c.Value
 
 	claims := &Claims{}
 
-	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err = jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Unauthorized")
-	}
-	if !tkn.Valid {
-		return "", fmt.Errorf("token invalid")
+		return "", err
 	}
 	return claims.ID, nil
 }
@@ -243,28 +239,4 @@ func (s *Server) checkPlayerPermissions(accID, pID PlayerID) error {
 		return fmt.Errorf("Unable to edit Player: Insufficient Permissions")
 	}
 	return nil
-}
-
-func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
-	pID, err := s.authenticate(r)
-	fmt.Println(pID)
-	if err != nil {
-		http.Redirect(w, r, "/api/signin", http.StatusSeeOther)
-		return
-	}
-	claims := &Claims{}
-	expirationTime := time.Now().Add(15 * time.Minute)
-	claims.ExpiresAt = expirationTime.Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
-	if err != nil {
-		handleError(w, http.StatusInternalServerError, err, true)
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:    "token",
-		Value:   tokenString,
-		Expires: expirationTime,
-	})
 }

@@ -49,6 +49,7 @@ func (trk *Tracker) MakeTrackerHyperItem(resolve hyper.ResolverFunc) hyper.Item 
 	res := hyper.Item{
 		Label: "Tracker",
 		Type:  "tracker",
+		ID:    string(trk.ID),
 		Properties: hyper.Properties{
 			{
 				Label: "Player",

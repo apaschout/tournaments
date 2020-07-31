@@ -28,6 +28,10 @@ func Codec() (*event.Codec, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.Register("tournament:maxplayers.changed", TournamentMaxPlayersChanged{})
+	if err != nil {
+		return nil, err
+	}
 	err = c.Register("tournament:player-registered", TournamentPlayerRegistered{})
 	if err != nil {
 		return nil, err

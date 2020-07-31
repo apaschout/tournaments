@@ -102,7 +102,7 @@ func getParticipants(trn hyper.Item) []hyper.Item {
 }
 
 func sortParticipants(items []hyper.Item) []hyper.Item {
-	if len(items) == 1 {
+	if len(items) <= 1 {
 		return items
 	}
 	middle := int(len(items) / 2)

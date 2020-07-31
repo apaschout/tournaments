@@ -70,6 +70,13 @@ type TournamentFormatChanged struct {
 	Format     string       `json:"format"`
 }
 
+type TournamentMaxPlayersChanged struct {
+	ID         string       `json:"id"`
+	OccurredOn time.Time    `json:"occurred-on"`
+	Tournament TournamentID `json:"tournament"`
+	MaxPlayers int          `json:"maxplayers"`
+}
+
 type TournamentMatchesCreated struct {
 	ID         string       `json:"id"`
 	OccurredOn time.Time    `json:"occurred-on"`
@@ -168,8 +175,11 @@ func (trn *Tournament) ChangePhase(p Phase) error {
 	if p == "" {
 		return fmt.Errorf("Phase not specified")
 	}
+	if trn.MaxPlayers == 0 {
+		return fmt.Errorf("Max Players not specified")
+	}
 	if trn.GamesToWin == 0 {
-		return fmt.Errorf("Games To Win can't be 0")
+		return fmt.Errorf("Games To Win not specified")
 	}
 	if trn.Phase == p {
 		return nil
@@ -210,6 +220,23 @@ func (trn *Tournament) ChangeFormat(f string) error {
 		Format:     f,
 	})
 	log.Printf("Event: Tournament %v: Format Changed To %s\n", trn.ID, f)
+	return nil
+}
+
+func (trn *Tournament) ChangeMaxPlayers(n int) error {
+	if trn.ID == "" {
+		return fmt.Errorf("Tournament does not exist")
+	}
+	if n <= 1 {
+		return fmt.Errorf("MaxPlayers need to be at least 2")
+	}
+	trn.Apply(TournamentMaxPlayersChanged{
+		ID:         uuid.MakeV4(),
+		OccurredOn: time.Now().UTC(),
+		Tournament: trn.ID,
+		MaxPlayers: n,
+	})
+	log.Printf("Event: Tournament %v: MaxPlayers changed to %d\n", trn.ID, n)
 	return nil
 }
 
@@ -472,6 +499,8 @@ func (trn *Tournament) Mutate(e event.Event) {
 		trn.Phase = e.Phase
 	case TournamentFormatChanged:
 		trn.Format = e.Format
+	case TournamentMaxPlayersChanged:
+		trn.MaxPlayers = e.MaxPlayers
 	case TournamentPlayerRegistered:
 		trn.Participants = append(trn.Participants, Participant{Player: e.Player})
 	case TournamentPlayerDropped:

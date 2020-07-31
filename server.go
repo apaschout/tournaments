@@ -106,7 +106,8 @@ func (s *Server) init() {
 	s.router.Route("/api/tournaments/:id").POST(aChain.ThenFunc(s.handlePOSTTournament))
 	s.router.Route("/api/tournaments/").POST(aChain.ThenFunc(s.handlePOSTTournaments))
 
-	s.router.Route("/api/standings/:id").GET(aChain.ThenFunc(s.handleGETStandings))
+	s.router.Route("/api/standings/").GET(aChain.ThenFunc(s.handleGETStandings))
+	s.router.Route("/api/standings/:id").GET(aChain.ThenFunc(s.handleGETStanding))
 
 	s.router.Route("/api/players/").GET(aChain.ThenFunc(s.handleGETPlayers))
 	s.router.Route("/api/players/:id").GET(aChain.ThenFunc(s.handleGETPlayer))

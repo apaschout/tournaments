@@ -20,7 +20,7 @@
 <body>
     <div class="flex-container" style="justify-content: space-between;">
         <h1 class="heading">
-            <a href="/api/tournaments/">Tournaments</a> > 
+            <a href="/api/tournaments/">Tournaments</a> >
             <a href="/api/tournaments/{{.ID}}">{{.ID}}</a>
         </h1>
         <div class="neon-button-red w3-margin-left" onclick="deleteTokenCookie();">
@@ -106,38 +106,18 @@
                 {{end}}
             </ul>
             {{range $.Actions}}{{if eq .Rel "register-player"}}
-            <div id="{{.Rel}}-modal" class="w3-modal">
-                <div class="w3-modal-content" style="width: 33%;">
-                    <form class="w3-container w3-dark-gray w3-padding" id="form-{{.Rel}}" action="{{.Href}}"
-                        method="{{.Method}}">
-                        <span onclick='document.getElementById("{{.Rel}}-modal").style.display="none"'
-                            class="w3-button w3-display-topright">&times;</span>
-                        <h2 class="w3-center">{{.Label}}</h2>
-                        <input type="hidden" name="@action" value="{{.Rel}}">
-                        <ul class="w3-ul w3-card w3-gray" id="ul-players">
-
-                        </ul>
-                        <div class="flex-container w3-padding">
-                            <div class="neon-button-green" onclick='document.getElementById("form-{{.Rel}}").submit()'>
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                                ADD
-                            </div>
-                        </div>
-                    </form>
+            <form id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">
+                <input type="hidden" name="@action" value="{{.Rel}}">
+                <div class="flex-container w3-padding">
+                    <div class="neon-button" onclick='document.getElementById("form-{{.Rel}}").submit();'>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        REGISTER
+                    </div>
                 </div>
-            </div>
-            <div class="flex-container w3-padding">
-                <div class="neon-button" onclick='document.getElementById("{{.Rel}}-modal").style.display="block"'>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    ADD
-                </div>
-            </div>
+            </form>
             {{end}}{{end}}
         </div>
         {{end}}
@@ -145,7 +125,8 @@
         {{$actions := .Actions}}
         {{range $property := .Properties}}{{if eq $property.Name "format"}}{{if eq $property.Value "cube"}}
         {{range $action  := $actions}}{{if eq $action.Rel "end-phase"}}
-        <form class="flex-container w3-padding" id="form-{{$action.Rel}}" action="{{$action.Href}}" method="{{$action.Method}}">
+        <form class="flex-container w3-padding" id="form-{{$action.Rel}}" action="{{$action.Href}}"
+            method="{{$action.Method}}">
             <input type="hidden" name="@action" value="{{$action.Rel}}">
             <div class="neon-button" onclick='document.getElementById("form-{{$action.Rel}}").submit()'>
                 <span></span>

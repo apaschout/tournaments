@@ -127,6 +127,30 @@
             </form>
         </div>
         {{end}}
+        {{$max := propertyByName $ "maxPlayers"}}
+        {{$maxAct := action $ "change-maxplayers"}}
+        {{if $maxAct}}
+        <div class="w3-container w3-dark-gray w3-margin-top" style="width:90%; margin:auto;">
+            <h4 class="w3-center">{{$maxAct.Label}}</h4>
+            <form class="flex-container" id="form-{{$maxAct.Rel}}" action="{{$maxAct.Href}}"
+                method="{{$maxAct.Method}}" style="justify-content: flex-start;">
+                <input type="hidden" name="@action" value="{{$maxAct.Rel}}">
+                {{range $maxAct.Parameters}}
+                <input class="w3-margin-top w3-margin-bottom" type="text" name="{{.Name}}"
+                    placeholder="{{.Placeholder}}" autocomplete="off"
+                    value='{{$max}}' style="width: 40%;">
+                {{end}}
+                <div class="neon-button w3-margin-left"
+                    onclick='document.getElementById("form-{{$maxAct.Rel}}").submit()'>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    CHANGE
+                </div>
+            </form>
+        </div>
+        {{end}}
         {{$endPhase := action $ "end-phase"}}
         {{if $endPhase}}
         <form class="flex-container w3-margin-top" id="form-{{$endPhase.Rel}}" action="{{$endPhase.Href}}"

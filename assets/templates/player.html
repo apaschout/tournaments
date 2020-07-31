@@ -40,7 +40,9 @@
             <span></span>
             {{.Label}}
         </div>
+        {{end}}
     </div>
+    {{range .Actions}}
     <div id="{{.Rel}}-modal" class="w3-modal">
         <div class="w3-modal-content">
             <form class="w3-container w3-dark-gray" id="form-{{.Rel}}" action="{{.Href}}" method="{{.Method}}">

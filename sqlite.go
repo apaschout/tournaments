@@ -26,7 +26,7 @@ func (s *Store) init() error {
 		return err
 	}
 	s.db = db
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT, name TEXT, phase TEXT, start TEXT, end TEXT, format TEXT, matches BLOB, games_to_win INTEGER, deleted INTEGER, PRIMARY KEY (id));`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tournaments (id TEXT, name TEXT, phase TEXT, start TEXT, end TEXT, format TEXT, maxplayers INTEGER, matches BLOB, games_to_win INTEGER, deleted INTEGER, PRIMARY KEY (id));`)
 	if err != nil {
 		return err
 	}
@@ -367,6 +367,16 @@ func (s *Store) On(rec event.Record) {
 				return err
 			}
 			log.Println("Projection: TournamentFormatChanged")
+			return nil
+		})
+	case TournamentMaxPlayersChanged:
+		err = sqlutil.Transact(s.db, func(t *sql.Tx) error {
+			query := "UPDATE tournaments SET maxplayers = ? WHERE id = ?;"
+			_, err = t.Exec(query, e.MaxPlayers, e.Tournament)
+			if err != nil {
+				return err
+			}
+			log.Println("Projection: TournamentMaxPlayersChanged")
 			return nil
 		})
 	case TournamentPhaseChanged:

@@ -21,6 +21,7 @@ type Tournament struct {
 	Start        string        `json:"start,omitempty"`
 	End          string        `json:"end,omitempty"`
 	Format       string        `json:"format,omitempty"`
+	MaxPlayers   int           `json:"maxplayers,omitempty"`
 	Seats        []Seat        `json:"seats"`
 	Matches      []Match       `json:"matches"`
 	GamesToWin   int           `json:"gamesToWin"`
@@ -53,6 +54,7 @@ const (
 	ActionDropPlayer       = "drop-player"
 	ActionCreate           = "create"
 	ActionChangeFormat     = "change-format"
+	ActionChangeMaxPlayers = "change-maxplayers"
 	ActionEndPhase         = "end-phase"
 	ActionEndGame          = "end-game"
 	ActionChangeGamesToWin = "change-gamestowin"
@@ -64,6 +66,7 @@ const (
 	ArgumentName         = "name"
 	ArgumentRole         = "role"
 	ArgumentFormat       = "format"
+	ArgumentMaxPlayers   = "maxplayers"
 	ArgumentMatch        = "match"
 	ArgumentGame         = "game"
 	ArgumentGamesToWin   = "gamestowin"
@@ -136,10 +139,12 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusBadRequest, err, isHtmlReq)
 		return
 	}
+	var editable bool
 	err = s.checkOrganizerPermissions(accID, "Unable to edit Tournament: Insufficient Permissions")
 	if err != nil {
-		handleError(w, http.StatusForbidden, err, isHtmlReq)
-		return
+		editable = false
+	} else {
+		editable = true
 	}
 	cmd := hyper.ExtractCommand(r)
 	tID := TournamentID(r.Context().Value(":id").(string))
@@ -152,11 +157,29 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 	switch cmd.Action {
 	case ActionRegisterPlayer:
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		if pID == "" {
+			pID = accID
+		}
+		if accID != pID {
+			handleError(w, http.StatusForbidden, fmt.Errorf("You can only register yourself"), isHtmlReq)
+			return
+		}
 		err = trn.RegisterPlayer(pID)
 	case ActionDropPlayer:
 		pID := PlayerID(cmd.Arguments.String(ArgumentPlayerID))
+		if pID == "" {
+			pID = accID
+		}
+		if accID != pID {
+			handleError(w, http.StatusForbidden, fmt.Errorf("You can only drop yourself"), isHtmlReq)
+			return
+		}
 		err = trn.DropPlayer(pID)
 	case ActionChangeName:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
 		var ok bool
 		newName := cmd.Arguments.String(ArgumentName)
 		ok, err = s.p.IsTournamentNameAvailable(newName)
@@ -166,12 +189,31 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 		}
 		err = trn.ChangeName(newName)
 	case ActionChangeGamesToWin:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
 		n := cmd.Arguments.Int(ArgumentGamesToWin)
 		err = trn.ChangeGamesToWin(n)
 	case ActionChangeFormat:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
 		f := cmd.Arguments.String(ArgumentFormat)
 		err = trn.ChangeFormat(f)
+	case ActionChangeMaxPlayers:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
+		max := cmd.Arguments.Int(ArgumentMaxPlayers)
+		err = trn.ChangeMaxPlayers(max)
 	case ActionEndPhase:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
 		switch trn.Format {
 		case "cube":
 			err = trn.handleEndPhaseCube()
@@ -181,6 +223,10 @@ func (s *Server) handlePOSTTournament(w http.ResponseWriter, r *http.Request) {
 			err = fmt.Errorf("Format not recognized: %s", trn.Format)
 		}
 	case ActionDelete:
+		if !editable {
+			handleError(w, http.StatusForbidden, fmt.Errorf("Unable to edit Tournament: Insufficient Permissions"), isHtmlReq)
+			return
+		}
 		err = trn.Delete()
 	case ActionEndGame:
 		m := cmd.Arguments.Int(ArgumentMatch)
@@ -330,59 +376,61 @@ func (trn *Tournament) MakeParticipantsHyperItem(resolve hyper.ResolverFunc) (hy
 		Label: "Participating Players",
 		Type:  "participants",
 	}
-	for i, par := range trn.Participants {
-		plr, err := trn.Server.p.FindPlayerByID(par.Player)
-		if err != nil {
-			return plrs, err
+	if len(trn.Participants) != 0 {
+		for i, par := range trn.Participants {
+			plr, err := trn.Server.p.FindPlayerByID(par.Player)
+			if err != nil {
+				return plrs, err
+			}
+			item := hyper.Item{
+				Label: plr.Name,
+				Type:  "participant",
+				ID:    string(par.Player),
+				Properties: []hyper.Property{
+					{
+						Label: "Name",
+						Name:  "name",
+						Value: plr.Name,
+					},
+					{
+						Label: "Seat Index",
+						Name:  "seatIndex",
+						Value: trn.Participants[i].SeatIndex,
+					},
+					{
+						Label: "Deck",
+						Name:  "deck",
+						Value: trn.Participants[i].Deck,
+					},
+					{
+						Label: "Matches",
+						Name:  "matches",
+						Value: trn.Participants[i].Matches,
+					},
+					{
+						Label: "Match Wins",
+						Name:  "matchWins",
+						Value: trn.Participants[i].MatchWins,
+					},
+					{
+						Label: "Games",
+						Name:  "games",
+						Value: trn.Participants[i].Games,
+					},
+					{
+						Label: "Game Wins",
+						Name:  "gameWins",
+						Value: trn.Participants[i].GameWins,
+					},
+				},
+			}
+			pLink := hyper.Link{
+				Rel:  "details",
+				Href: resolve("../players/%s", par.Player).String(),
+			}
+			item.AddLink(pLink)
+			plrs.AddItem(item)
 		}
-		item := hyper.Item{
-			Label: plr.Name,
-			Type:  "participant",
-			ID:    string(par.Player),
-			Properties: []hyper.Property{
-				{
-					Label: "Name",
-					Name:  "name",
-					Value: plr.Name,
-				},
-				{
-					Label: "Seat Index",
-					Name:  "seatIndex",
-					Value: trn.Participants[i].SeatIndex,
-				},
-				{
-					Label: "Deck",
-					Name:  "deck",
-					Value: trn.Participants[i].Deck,
-				},
-				{
-					Label: "Matches",
-					Name:  "matches",
-					Value: trn.Participants[i].Matches,
-				},
-				{
-					Label: "Match Wins",
-					Name:  "matchWins",
-					Value: trn.Participants[i].MatchWins,
-				},
-				{
-					Label: "Games",
-					Name:  "games",
-					Value: trn.Participants[i].Games,
-				},
-				{
-					Label: "Game Wins",
-					Name:  "gameWins",
-					Value: trn.Participants[i].GameWins,
-				},
-			},
-		}
-		pLink := hyper.Link{
-			Rel:  "details",
-			Href: resolve("../players/%s", par.Player).String(),
-		}
-		item.AddLink(pLink)
-		plrs.AddItem(item)
 	}
 	return plrs, nil
 }
@@ -416,155 +464,6 @@ func (trn *Tournament) MakeUndetailedHyperItem(resolve hyper.ResolverFunc) hyper
 	item.AddLink(tLink)
 	return item
 }
-
-// func MakeDetailedTrnHyperItem(trn Tournament, resolve hyper.ResolverFunc) hyper.Item {
-// 	item := hyper.Item{
-// 		Label: trn.Name,
-// 		Type:  "tournament",
-// 		ID:    string(trn.ID),
-// 		Properties: []hyper.Property{
-// 			{
-// 				Label: "Name",
-// 				Name:  "name",
-// 				Value: trn.Name,
-// 			},
-// 			{
-// 				Label: "Version",
-// 				Name:  "version",
-// 				Value: trn.Version,
-// 			},
-// 			{
-// 				Label: "Phase",
-// 				Name:  "phase",
-// 				Value: trn.Phase,
-// 			},
-// 			{
-// 				Label: "Matches",
-// 				Name:  "matches",
-// 				Value: trn.Matches,
-// 			},
-// 			{
-// 				Label: "Start",
-// 				Name:  "start",
-// 				Value: trn.Start,
-// 			},
-// 			{
-// 				Label: "End",
-// 				Name:  "end",
-// 				Value: trn.End,
-// 			},
-// 			{
-// 				Label: "Format",
-// 				Name:  "format",
-// 				Value: trn.Format,
-// 			},
-// 			{
-// 				Label: "Games To Win",
-// 				Name:  "gamesToWin",
-// 				Value: trn.GamesToWin,
-// 			},
-// 		},
-// 	}
-// 	link := hyper.Link{
-// 		Rel:  "self",
-// 		Href: resolve("./%s", trn.ID).String(),
-// 	}
-// 	actions := hyper.Actions{
-// 		{
-// 			Label:  "Change Name",
-// 			Rel:    ActionChangeName,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name:        ArgumentName,
-// 					Placeholder: "New Name...",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Label:  "Change Games To Win",
-// 			Rel:    ActionChangeGamesToWin,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name:        ArgumentGamesToWin,
-// 					Placeholder: "Games To Win...",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Label:  "Change Format",
-// 			Rel:    ActionChangeFormat,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name:        ArgumentFormat,
-// 					Placeholder: "New Format...",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Label:  "End Phase",
-// 			Rel:    ActionEndPhase,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 		},
-// 		{
-// 			Label:  "Delete",
-// 			Rel:    ActionDelete,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 		},
-// 		{
-// 			Label:  "Register Player",
-// 			Rel:    ActionRegisterPlayer,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name: ArgumentPlayerID,
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Label:  "Drop Player",
-// 			Rel:    ActionDropPlayer,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name: ArgumentPlayerID,
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Label:  "End Game",
-// 			Rel:    ActionEndGame,
-// 			Href:   resolve("./%s", trn.ID).String(),
-// 			Method: "POST",
-// 			Parameters: hyper.Parameters{
-// 				{
-// 					Name: ArgumentMatch,
-// 				},
-// 				{
-// 					Name: ArgumentGame,
-// 				},
-// 				{
-// 					Name: ArgumentPlayerID,
-// 				},
-// 				{
-// 					Name: ArgumentDraw,
-// 				},
-// 			},
-// 		},
-// 	}
-// 	item.AddActions(actions)
-// 	item.AddLink(link)
-// 	return item
-// }
 
 func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.Item {
 	res := hyper.Item{
@@ -612,6 +511,11 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 		Name:  "gamesToWin",
 		Value: trn.GamesToWin,
 	}
+	maxProp := hyper.Property{
+		Label: "Max Players",
+		Name:  "maxPlayers",
+		Value: trn.MaxPlayers,
+	}
 	//Actions
 	nameAct := hyper.Action{
 		Label:  "Change Name",
@@ -646,6 +550,18 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 			{
 				Name:        ArgumentFormat,
 				Placeholder: "New Format...",
+			},
+		},
+	}
+	maxAct := hyper.Action{
+		Label:  "Change Max Players",
+		Rel:    ActionChangeMaxPlayers,
+		Href:   resolve("./%s", trn.ID).String(),
+		Method: "POST",
+		Parameters: hyper.Parameters{
+			{
+				Name:        ArgumentMaxPlayers,
+				Placeholder: "Max Players",
 			},
 		},
 	}
@@ -712,10 +628,12 @@ func (trn *Tournament) MakeDetailedHyperItem(resolve hyper.ResolverFunc) hyper.I
 	case PhaseInitialization:
 		res.AddProperty(formatProp)
 		res.AddProperty(g2wProp)
+		res.AddProperty(maxProp)
 
 		res.AddAction(formatAct)
 		res.AddAction(nameAct)
 		res.AddAction(g2wAct)
+		res.AddAction(maxAct)
 		res.AddAction(phaseAct)
 	case PhaseRegistration:
 		res.AddProperty(formatProp)

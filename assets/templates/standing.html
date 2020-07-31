@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="/css/w3.css">
+    <script src="/js/script.js"></script>
+    <title>{{$.Label}}</title>
+    <script>
+        document.addEventListener("DOMContentLoaded", e => {
+            checkOptionsSelected()
+        });
+    </script>
+</head>
+
+<body>
+    <div class="flex-container" style="justify-content: space-between;">
+        <h1 class="heading">
+            <a href="/api/tournaments/">Standings</a>
+        </h1>
+        <div class="neon-button-red w3-margin-left" onclick="deleteTokenCookie();">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            LOGOUT
+        </div>
+    </div>
+    <div class="w3-bar w3-dark-gray w3-center">
+        <a href="/api/tournaments/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Tournaments</a>
+        <a href="/api/players/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Players</a>
+        <a href="/api/decks/" class="w3-bar-item w3-hover-gray" style="text-decoration:none;">Decks</a>
+        <a href="/api/standings/" class="w3-bar-item w3-hover-gray" style="text-decoration:none">Standings</a>
+    </div>
+    <table class="w3-table w3-bordered w3-border" id="standings">
+        <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Matches</th>
+            <th>Match Wins</th>
+            <th>Games</th>
+            <th>Game Wins</th>
+        </tr>
+        
+        {{$index := 1}}
+        {{$parts := getParticipants $}}
+        {{$sorted := sortParticipants $parts}}
+        {{range $part := $sorted}}
+        <tr>
+            <td>
+                <div class="medal flex-container">{{$index}}</div>
+            </td>
+            <td><a href="{{details $part}}" target="_blank">{{propertyByName $part "name"}}</a></td>
+            <td>{{propertyByName $part "matches"}}</td>
+            <td>{{propertyByName $part "matchWins"}}</td>
+            <td>{{propertyByName $part "games"}}</td>
+            <td>{{propertyByName $part "gameWins"}}</td>
+        </tr>
+        {{$index = add $index 1}}
+        {{end}}
+    </table>
+    <script>
+        function getSelectedValue(select) {
+            return select.options[select.selectedIndex].value
+        }
+
+        function checkOptionsSelected() {
+            var sel = document.getElementById("trnSelect")
+            var opts = sel.options
+            var strs = window.location.href.split("standings/")
+            var currentID = strs[1]
+            for (let i = 0; i < opts.length; i++) {
+                if (opts[i].value.split("standings/")[1] == currentID) {
+                    opts[i].setAttribute("selected", "")
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
